@@ -23,9 +23,9 @@ async def init_db():
                 source        TEXT NOT NULL CHECK(source IN ('huggingface', 'civitai', 'local')),
                 source_url    TEXT,
                 path          TEXT NOT NULL,
-                format        TEXT NOT NULL CHECK(format IN ('diffusers', 'safetensors')),
+                format        TEXT NOT NULL DEFAULT 'diffusers',
                 size_bytes    INTEGER NOT NULL DEFAULT 0,
-                type          TEXT NOT NULL DEFAULT 'checkpoint' CHECK(type IN ('checkpoint')),
+                type          TEXT NOT NULL DEFAULT 'checkpoint',
                 trigger_words TEXT,
                 pulled_at     TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -56,7 +56,7 @@ async def init_db():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 id            TEXT PRIMARY KEY,
-                type          TEXT NOT NULL DEFAULT 'txt2img' CHECK(type IN ('txt2img')),
+                type          TEXT NOT NULL DEFAULT 'txt2img',
                 model_id      TEXT NOT NULL,
                 params        TEXT NOT NULL,
                 status        TEXT NOT NULL DEFAULT 'pending'

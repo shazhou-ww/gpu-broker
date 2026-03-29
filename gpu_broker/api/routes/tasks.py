@@ -21,11 +21,12 @@ async def submit_task(request: TaskSubmitRequest, req: Request):
     try:
         scheduler = req.app.state.scheduler
         
-        # Assemble params: merge prompt/negative_prompt into the extra params dict
+        # Merge input fields and params into a single params dict for the engine
+        # input carries task-type-specific data (e.g. prompt, negative_prompt)
+        # params carries generic tuning knobs (e.g. width, height, steps)
         params = dict(request.params) if request.params else {}
-        params["prompt"] = request.prompt
-        if request.negative_prompt:
-            params["negative_prompt"] = request.negative_prompt
+        if request.input:
+            params.update(request.input)
         
         task_id = await scheduler.submit(
             task_type=request.type,

@@ -1,5 +1,5 @@
 """Pydantic schemas for API request/response models."""
-from typing import Optional, Any, Literal
+from typing import Optional, Any
 from pydantic import BaseModel, Field
 
 
@@ -39,12 +39,12 @@ class ModelInfo(BaseModel):
     id: str             # SHA256 short ID (12 chars)
     sha256: str = ''    # Full SHA256 hash
     name: str
-    source: Literal['huggingface', 'civitai', 'local']
+    source: str
     source_url: Optional[str] = None
     path: str
-    format: Literal['diffusers', 'safetensors']
+    format: str
     size_bytes: int = 0
-    type: Literal['checkpoint'] = 'checkpoint'
+    type: str = 'checkpoint'
     trigger_words: Optional[str] = None
     pulled_at: str
     loaded: bool = False  # Runtime status, not from DB
@@ -63,7 +63,7 @@ class ModelDownloadRequest(BaseModel):
 
 class ModelPullRequest(BaseModel):
     """Legacy request model for pulling a model. Kept for backward compatibility."""
-    source: Literal['huggingface', 'civitai']
+    source: str
     repo_id: Optional[str] = None  # For HuggingFace
     url: Optional[str] = None      # For Civitai
     filename: Optional[str] = None # For Civitai
@@ -74,7 +74,7 @@ class ModelAddRequest(BaseModel):
     path: str
     name: Optional[str] = None
     lookup: bool = False
-    strategy: Literal['symlink', 'copy', 'move'] = 'symlink'
+    strategy: str = 'symlink'
 
 
 class Txt2ImgParams(BaseModel):
@@ -93,21 +93,26 @@ class TaskSubmitRequest(BaseModel):
     
     The 'model' field accepts a short ID, full SHA256 hash, or model name.
     resolve_id() will find the matching model.
+    
+    The 'input' field carries task-type-specific data:
+      - txt2img: {"prompt": "a cat", "negative_prompt": "blurry"}
+      - tts:     {"text": "hello world", "voice": "en-US-1"}
+      - stt:     {"audio_path": "/path/to/audio.wav"}
+      - llm:     {"messages": [{"role": "user", "content": "hi"}]}
     """
-    type: Literal['txt2img'] = 'txt2img'
-    model: str               # Short ID, full hash, or name (resolve_id will find it)
-    prompt: str
-    negative_prompt: Optional[str] = ""
-    params: Optional[dict] = Field(default_factory=dict)  # width, height, steps, etc.
+    type: str = 'txt2img'            # Not restricted to enum
+    model: str                       # Short ID, full hash, or name
+    input: dict                      # Task-type-specific input
+    params: Optional[dict] = Field(default_factory=dict)  # Generic tuning params
 
 
 class TaskInfo(BaseModel):
     """Task information."""
     id: str
-    type: Literal['txt2img']
+    type: str
     model_id: str
     params: str  # JSON string from DB
-    status: Literal['pending', 'running', 'completed', 'failed', 'cancelled']
+    status: str
     result_path: Optional[str] = None
     error: Optional[str] = None
     created_at: str
