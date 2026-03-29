@@ -135,19 +135,33 @@ class InferenceEngine:
             logger.info(f"Evicting model {evicted_id} from cache")
             if evicted_pipeline is not None:
                 del evicted_pipeline
-            if not self.is_mock and DIFFUSERS_AVAILABLE and torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                logger.info("VRAM cleared after eviction")
-    
+            self._flush_vram()
+
+    def _flush_vram(self) -> None:
+        """Force Python GC + CUDA cache clear to actually free VRAM."""
+        import gc
+        gc.collect()
+        if not self.is_mock and DIFFUSERS_AVAILABLE and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            logger.info("VRAM flushed (gc.collect + empty_cache)")
+
     def unload_model(self) -> None:
-        """Unload current model (clear active reference, keep cache intact)."""
+        """Fully unload current model and free VRAM."""
         if self._current_model_id is not None:
-            logger.info(f"Unloading active model {self._current_model_id} (cache preserved)")
+            logger.info(f"Unloading model {self._current_model_id} and freeing VRAM")
+            # Remove from cache
+            if self._current_model_id in self._model_cache:
+                cached = self._model_cache.pop(self._current_model_id)
+                if cached is not None:
+                    del cached
         
+        if self._pipeline is not None:
+            del self._pipeline
         self._pipeline = None
         self._current_model_id = None
         self._current_model_path = None
         self._current_loras = []
+        self._flush_vram()
     
     def load_lora(self, lora_id: str, lora_path: str, lora_name: str = '',
                   lora_weight: float = 0.8) -> None:

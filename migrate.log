@@ -1,0 +1,427 @@
+=== ComfyUI → gpu-broker Migration ===
+Started: Sun Mar 29 23:50:38 CST 2026
+Started: Sun Mar 29 23:50:38 CST 2026
+
+
+[1/33] Moving 9527DetailRealistic_v85X215c (6.5G)...
+[1/33] Moving 9527DetailRealistic_v85X215c (6.5G)...
+2026-03-29 23:50:38,827 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-29 23:50:38,827 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-29 23:53:24,321 - gpu_broker.models.manager - INFO - Registered local model '9527DetailRealistic_v85X215c' id=641d21fe5ceb strategy=move format=safetensors
+2026-03-29 23:53:24,321 - gpu_broker.models.manager - INFO - Registered local model '9527DetailRealistic_v85X215c' id=641d21fe5ceb strategy=move format=safetensors
+{
+  "id": "641d21fe5ceb",
+  "sha256": "641d21fe5cebb18d349c53fcf779c8f4b7b954e3a70b17464f92ad154bd317b0",
+  "name": "9527DetailRealistic_v85X215c",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/641d21fe5ceb.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040286,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-29T23:53:24.309893",
+  "updated_at": "2026-03-29T23:53:24.309913"
+}
+{
+  "id": "641d21fe5ceb",
+  "sha256": "641d21fe5cebb18d349c53fcf779c8f4b7b954e3a70b17464f92ad154bd317b0",
+  "name": "9527DetailRealistic_v85X215c",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/641d21fe5ceb.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040286,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-29T23:53:24.309893",
+  "updated_at": "2026-03-29T23:53:24.309913"
+}
+  ✅ Success
+  ✅ Success
+
+
+[2/33] Moving SDXLRonghua_v45 (6.5G)...
+[2/33] Moving SDXLRonghua_v45 (6.5G)...
+2026-03-29 23:53:24,540 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-29 23:53:24,540 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-29 23:56:36,119 - gpu_broker.models.manager - INFO - Registered local model 'SDXLRonghua_v45' id=c369bc2bae99 strategy=move format=safetensors
+2026-03-29 23:56:36,119 - gpu_broker.models.manager - INFO - Registered local model 'SDXLRonghua_v45' id=c369bc2bae99 strategy=move format=safetensors
+{
+  "id": "c369bc2bae99",
+  "sha256": "c369bc2bae999e6945da463e682fb855af7f42d9d0fde31c68c0b95fbb537995",
+  "name": "SDXLRonghua_v45",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/c369bc2bae99.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040720,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-29T23:56:36.101755",
+  "updated_at": "2026-03-29T23:56:36.101795"
+}
+{
+  "id": "c369bc2bae99",
+  "sha256": "c369bc2bae999e6945da463e682fb855af7f42d9d0fde31c68c0b95fbb537995",
+  "name": "SDXLRonghua_v45",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/c369bc2bae99.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040720,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-29T23:56:36.101755",
+  "updated_at": "2026-03-29T23:56:36.101795"
+}
+  ✅ Success
+  ✅ Success
+
+
+[3/33] Moving asianRealismByStable_v30FP16 (6.5G)...
+[3/33] Moving asianRealismByStable_v30FP16 (6.5G)...
+2026-03-29 23:56:37,396 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-29 23:56:37,396 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:00:12,779 - gpu_broker.models.manager - INFO - Registered local model 'asianRealismByStable_v30FP16' id=548fd1b0cbb6 strategy=move format=safetensors
+2026-03-30 00:00:12,779 - gpu_broker.models.manager - INFO - Registered local model 'asianRealismByStable_v30FP16' id=548fd1b0cbb6 strategy=move format=safetensors
+{
+  "id": "548fd1b0cbb6",
+  "sha256": "548fd1b0cbb6a964414d9919bae4c8069452fd632aed2d6702adb906fc3628fb",
+  "name": "asianRealismByStable_v30FP16",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/548fd1b0cbb6.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040856,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:00:12.765273",
+  "updated_at": "2026-03-30T00:00:12.765315"
+}
+{
+  "id": "548fd1b0cbb6",
+  "sha256": "548fd1b0cbb6a964414d9919bae4c8069452fd632aed2d6702adb906fc3628fb",
+  "name": "asianRealismByStable_v30FP16",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/548fd1b0cbb6.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040856,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:00:12.765273",
+  "updated_at": "2026-03-30T00:00:12.765315"
+}
+  ✅ Success
+  ✅ Success
+
+
+[4/33] Moving autismmixSDXL_autismmixPony (6.5G)...
+[4/33] Moving autismmixSDXL_autismmixPony (6.5G)...
+2026-03-30 00:00:13,096 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:00:13,096 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:03:28,864 - gpu_broker.models.manager - INFO - Registered local model 'autismmixSDXL_autismmixPony' id=821aa5537f8d strategy=move format=safetensors
+2026-03-30 00:03:28,864 - gpu_broker.models.manager - INFO - Registered local model 'autismmixSDXL_autismmixPony' id=821aa5537f8d strategy=move format=safetensors
+{
+  "id": "821aa5537f8d",
+  "sha256": "821aa5537f8ddafdbf963827551865c31c5bbfab1abe7925cb5f006c8f71e485",
+  "name": "autismmixSDXL_autismmixPony",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/821aa5537f8d.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938041146,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:03:26.763645",
+  "updated_at": "2026-03-30T00:03:26.763666"
+}
+{
+  "id": "821aa5537f8d",
+  "sha256": "821aa5537f8ddafdbf963827551865c31c5bbfab1abe7925cb5f006c8f71e485",
+  "name": "autismmixSDXL_autismmixPony",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/821aa5537f8d.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938041146,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:03:26.763645",
+  "updated_at": "2026-03-30T00:03:26.763666"
+}
+  ✅ Success
+  ✅ Success
+
+
+[5/33] Moving bemypony_Photo4 (6.5G)...
+[5/33] Moving bemypony_Photo4 (6.5G)...
+2026-03-30 00:03:29,073 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:03:29,073 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:06:33,841 - gpu_broker.models.manager - INFO - Registered local model 'bemypony_Photo4' id=f9b4cacb576b strategy=move format=safetensors
+2026-03-30 00:06:33,841 - gpu_broker.models.manager - INFO - Registered local model 'bemypony_Photo4' id=f9b4cacb576b strategy=move format=safetensors
+{
+  "id": "f9b4cacb576b",
+  "sha256": "f9b4cacb576b0aaa3d37bf945c4e3115b62df64e15ed4845dea0d873900c2891",
+  "name": "bemypony_Photo4",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/f9b4cacb576b.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938049802,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:06:33.828215",
+  "updated_at": "2026-03-30T00:06:33.828233"
+}
+{
+  "id": "f9b4cacb576b",
+  "sha256": "f9b4cacb576b0aaa3d37bf945c4e3115b62df64e15ed4845dea0d873900c2891",
+  "name": "bemypony_Photo4",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/f9b4cacb576b.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938049802,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:06:33.828215",
+  "updated_at": "2026-03-30T00:06:33.828233"
+}
+  ✅ Success
+  ✅ Success
+
+
+[6/33] Moving beretMixReal_v100 (6.5G)...
+[6/33] Moving beretMixReal_v100 (6.5G)...
+2026-03-30 00:06:34,267 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:06:34,267 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:09:42,630 - gpu_broker.models.manager - INFO - Registered local model 'beretMixReal_v100' id=724bb30470a3 strategy=move format=safetensors type=checkpoint
+2026-03-30 00:09:42,630 - gpu_broker.models.manager - INFO - Registered local model 'beretMixReal_v100' id=724bb30470a3 strategy=move format=safetensors type=checkpoint
+{
+  "id": "724bb30470a3",
+  "sha256": "724bb30470a32a481046dbaf30f15a56361ef763af3bd6dac443d53032f247c8",
+  "name": "beretMixReal_v100",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/724bb30470a3.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938043248,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:09:39.011819",
+  "updated_at": "2026-03-30T00:09:39.011832"
+}
+{
+  "id": "724bb30470a3",
+  "sha256": "724bb30470a32a481046dbaf30f15a56361ef763af3bd6dac443d53032f247c8",
+  "name": "beretMixReal_v100",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/724bb30470a3.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938043248,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:09:39.011819",
+  "updated_at": "2026-03-30T00:09:39.011832"
+}
+  ✅ Success
+  ✅ Success
+
+
+[7/33] Moving betterThanWords_v30 (6.5G)...
+[7/33] Moving betterThanWords_v30 (6.5G)...
+2026-03-30 00:09:44,335 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:09:44,335 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:12:59,486 - gpu_broker.models.manager - INFO - Registered local model 'betterThanWords_v30' id=83eb115d6c49 strategy=move format=safetensors type=checkpoint
+2026-03-30 00:12:59,486 - gpu_broker.models.manager - INFO - Registered local model 'betterThanWords_v30' id=83eb115d6c49 strategy=move format=safetensors type=checkpoint
+{
+  "id": "83eb115d6c49",
+  "sha256": "83eb115d6c4926833421fe9d2bbb487425763544dfc219d725830c11f0c78cb4",
+  "name": "betterThanWords_v30",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/83eb115d6c49.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6939301466,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:12:59.475515",
+  "updated_at": "2026-03-30T00:12:59.475555"
+}
+{
+  "id": "83eb115d6c49",
+  "sha256": "83eb115d6c4926833421fe9d2bbb487425763544dfc219d725830c11f0c78cb4",
+  "name": "betterThanWords_v30",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/83eb115d6c49.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6939301466,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:12:59.475515",
+  "updated_at": "2026-03-30T00:12:59.475555"
+}
+  ✅ Success
+  ✅ Success
+
+
+[8/33] Moving cyberrealisticPony_v150 (6.5G)...
+[8/33] Moving cyberrealisticPony_v150 (6.5G)...
+2026-03-30 00:13:00,152 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:13:00,152 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:15:52,550 - gpu_broker.models.manager - INFO - Registered local model 'cyberrealisticPony_v150' id=45e39f5a9601 strategy=move format=safetensors type=checkpoint
+2026-03-30 00:15:52,550 - gpu_broker.models.manager - INFO - Registered local model 'cyberrealisticPony_v150' id=45e39f5a9601 strategy=move format=safetensors type=checkpoint
+{
+  "id": "45e39f5a9601",
+  "sha256": "45e39f5a960140cafd9d43ac72e73e221e0ef7b6bce14e4c0b928b745481cec8",
+  "name": "cyberrealisticPony_v150",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/45e39f5a9601.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040866,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:15:52.541602",
+  "updated_at": "2026-03-30T00:15:52.541613"
+}
+{
+  "id": "45e39f5a9601",
+  "sha256": "45e39f5a960140cafd9d43ac72e73e221e0ef7b6bce14e4c0b928b745481cec8",
+  "name": "cyberrealisticPony_v150",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/45e39f5a9601.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938040866,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:15:52.541602",
+  "updated_at": "2026-03-30T00:15:52.541613"
+}
+  ✅ Success
+  ✅ Success
+
+
+[9/33] Moving divingIllustriousReal_v70VAE (6.5G)...
+[9/33] Moving divingIllustriousReal_v70VAE (6.5G)...
+2026-03-30 00:15:52,751 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:15:52,751 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:19:11,269 - gpu_broker.models.manager - INFO - Registered local model 'divingIllustriousReal_v70VAE' id=8c9f6cda8425 strategy=move format=safetensors type=checkpoint
+2026-03-30 00:19:11,269 - gpu_broker.models.manager - INFO - Registered local model 'divingIllustriousReal_v70VAE' id=8c9f6cda8425 strategy=move format=safetensors type=checkpoint
+{
+  "id": "8c9f6cda8425",
+  "sha256": "8c9f6cda8425cd0c32d50861591da538f00b6c97ad08d1938f1a336a310af2e9",
+  "name": "divingIllustriousReal_v70VAE",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/8c9f6cda8425.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938124134,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:19:07.955199",
+  "updated_at": "2026-03-30T00:19:07.955223"
+}
+{
+  "id": "8c9f6cda8425",
+  "sha256": "8c9f6cda8425cd0c32d50861591da538f00b6c97ad08d1938f1a336a310af2e9",
+  "name": "divingIllustriousReal_v70VAE",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/8c9f6cda8425.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938124134,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:19:07.955199",
+  "updated_at": "2026-03-30T00:19:07.955223"
+}
+  ✅ Success
+  ✅ Success
+
+
+[10/33] Moving dreamshaperXL_lightningDPMSDE (6.5G)...
+[10/33] Moving dreamshaperXL_lightningDPMSDE (6.5G)...
+2026-03-30 00:19:15,195 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:19:15,195 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:22:15,278 - gpu_broker.models.manager - INFO - Registered local model 'dreamshaperXL_lightningDPMSDE' id=fdbe56354b8f strategy=move format=safetensors type=checkpoint
+2026-03-30 00:22:15,278 - gpu_broker.models.manager - INFO - Registered local model 'dreamshaperXL_lightningDPMSDE' id=fdbe56354b8f strategy=move format=safetensors type=checkpoint
+{
+  "id": "fdbe56354b8f",
+  "sha256": "fdbe56354b8f876b736f24d3ad867ecd4140c019f57642ec8ddd878088d44f64",
+  "name": "dreamshaperXL_lightningDPMSDE",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/fdbe56354b8f.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6939220250,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:22:10.799151",
+  "updated_at": "2026-03-30T00:22:10.799166"
+}
+{
+  "id": "fdbe56354b8f",
+  "sha256": "fdbe56354b8f876b736f24d3ad867ecd4140c019f57642ec8ddd878088d44f64",
+  "name": "dreamshaperXL_lightningDPMSDE",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/fdbe56354b8f.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6939220250,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:22:10.799151",
+  "updated_at": "2026-03-30T00:22:10.799166"
+}
+  ✅ Success
+  ✅ Success
+
+
+[11/33] Moving fudukiMix_v20 (6.5G)...
+[11/33] Moving fudukiMix_v20 (6.5G)...
+2026-03-30 00:22:15,487 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:22:15,487 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:25:29,759 - gpu_broker.models.manager - INFO - Registered local model 'fudukiMix_v20' id=ce745cd67c26 strategy=move format=safetensors type=checkpoint
+2026-03-30 00:25:29,759 - gpu_broker.models.manager - INFO - Registered local model 'fudukiMix_v20' id=ce745cd67c26 strategy=move format=safetensors type=checkpoint
+{
+  "id": "ce745cd67c26",
+  "sha256": "ce745cd67c261cc5983664e99bd46b9894e09b4425b48dac7ea9a7345790f85f",
+  "name": "fudukiMix_v20",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/ce745cd67c26.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938043434,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:25:20.128518",
+  "updated_at": "2026-03-30T00:25:20.128567"
+}
+{
+  "id": "ce745cd67c26",
+  "sha256": "ce745cd67c261cc5983664e99bd46b9894e09b4425b48dac7ea9a7345790f85f",
+  "name": "fudukiMix_v20",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/ce745cd67c26.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938043434,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:25:20.128518",
+  "updated_at": "2026-03-30T00:25:20.128567"
+}
+  ✅ Success
+  ✅ Success
+
+
+[12/33] Moving getphatFLUXReality_v11Softcore (23G)...
+[12/33] Moving getphatFLUXReality_v11Softcore (23G)...
+2026-03-30 00:25:30,166 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:25:30,166 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models

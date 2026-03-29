@@ -48,6 +48,17 @@ def get_gpu_info() -> Optional[GPUInfo]:
         return None
 
 
+@router.post("/unload")
+async def unload_model(request: Request):
+    """Unload current model and free VRAM."""
+    engine = request.app.state.engine
+    model_id = engine.loaded_model_id
+    if model_id is None:
+        return {"status": "ok", "message": "No model loaded"}
+    engine.unload_model()
+    return {"status": "ok", "message": f"Model {model_id} unloaded, VRAM freed"}
+
+
 @router.get("/status", response_model=StatusResponse)
 async def get_status(request: Request):
     """Get server status with GPU, loaded model, and queue info."""
