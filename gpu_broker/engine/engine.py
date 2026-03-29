@@ -1,5 +1,6 @@
 """Inference engine for running ML models."""
 import logging
+from collections import OrderedDict
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import diffusers (optional)
 try:
-    from diffusers import StableDiffusionPipeline
+    from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
     import torch
     DIFFUSERS_AVAILABLE = True
 except ImportError:
@@ -20,11 +21,12 @@ except ImportError:
 class InferenceEngine:
     """Thin wrapper around diffusers pipelines."""
     
-    def __init__(self, outputs_dir: Path):
+    def __init__(self, outputs_dir: Path, max_cached_models: int = 1):
         """Initialize the inference engine.
         
         Args:
             outputs_dir: Directory to save generated images
+            max_cached_models: Maximum number of models to keep in VRAM cache (default 1)
         """
         self._pipeline = None
         self._current_model_id: Optional[str] = None
@@ -32,7 +34,11 @@ class InferenceEngine:
         self.outputs_dir = outputs_dir
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
         
-        logger.info(f"InferenceEngine initialized (mock={self.is_mock})")
+        # LRU model cache: model_id -> pipeline (or None in mock mode)
+        self._model_cache: OrderedDict = OrderedDict()
+        self.max_cached_models: int = max_cached_models
+        
+        logger.info(f"InferenceEngine initialized (mock={self.is_mock}, max_cached={max_cached_models})")
     
     @property
     def is_mock(self) -> bool:
@@ -45,17 +51,30 @@ class InferenceEngine:
         return self._current_model_id
     
     def load_model(self, model_id: str, model_path: str, model_format: str) -> None:
-        """Load a model into VRAM (or mock if no GPU).
+        """Load a model into VRAM (or mock if no GPU). Uses LRU cache.
         
         Args:
             model_id: Model identifier
             model_path: Path to the model files
             model_format: 'diffusers' or 'safetensors'
         """
-        if self.is_mock:
-            logger.info(f"Mock mode: pretending to load {model_id}")
+        # Check cache first
+        if model_id in self._model_cache:
+            logger.info(f"Cache hit for model {model_id}")
+            self._model_cache.move_to_end(model_id)
+            self._pipeline = self._model_cache[model_id]
             self._current_model_id = model_id
             self._current_model_path = model_path
+            return
+        
+        if self.is_mock:
+            logger.info(f"Mock mode: pretending to load {model_id}")
+            self._pipeline = None
+            self._current_model_id = model_id
+            self._current_model_path = model_path
+            # Store in cache (None for mock)
+            self._model_cache[model_id] = None
+            self._evict_if_needed()
             return
         
         # Real loading with diffusers
@@ -68,10 +87,21 @@ class InferenceEngine:
                     torch_dtype=torch.float16
                 )
             elif model_format == 'safetensors':
-                self._pipeline = StableDiffusionPipeline.from_single_file(
-                    model_path,
-                    torch_dtype=torch.float16
-                )
+                # Try SDXL first (for XL models), fallback to SD 1.5
+                try:
+                    logger.info("Trying StableDiffusionXLPipeline...")
+                    self._pipeline = StableDiffusionXLPipeline.from_single_file(
+                        model_path,
+                        torch_dtype=torch.float16
+                    )
+                    logger.info("Loaded as SDXL pipeline")
+                except Exception as xl_err:
+                    logger.info(f"SDXL load failed ({xl_err}), falling back to SD 1.5")
+                    self._pipeline = StableDiffusionPipeline.from_single_file(
+                        model_path,
+                        torch_dtype=torch.float16
+                    )
+                    logger.info("Loaded as SD 1.5 pipeline")
             else:
                 raise ValueError(f"Unsupported model format: {model_format}")
             
@@ -84,24 +114,49 @@ class InferenceEngine:
             
             self._current_model_id = model_id
             self._current_model_path = model_path
+            
+            # Store in cache and evict if needed
+            self._model_cache[model_id] = self._pipeline
+            self._evict_if_needed()
+            
             logger.info(f"Successfully loaded {model_id}")
             
         except Exception as e:
             logger.error(f"Failed to load model {model_id}: {e}")
             raise
     
-    def unload_model(self) -> None:
-        """Unload current model from VRAM."""
-        if self._pipeline is not None:
-            logger.info(f"Unloading model {self._current_model_id}")
-            del self._pipeline
-            self._pipeline = None
-            
-            if not self.is_mock and torch.cuda.is_available():
+    def _evict_if_needed(self) -> None:
+        """Evict oldest cached model if cache exceeds max size."""
+        while len(self._model_cache) > self.max_cached_models:
+            evicted_id, evicted_pipeline = self._model_cache.popitem(last=False)
+            logger.info(f"Evicting model {evicted_id} from cache")
+            if evicted_pipeline is not None:
+                del evicted_pipeline
+            if not self.is_mock and DIFFUSERS_AVAILABLE and torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                logger.info("VRAM cleared after eviction")
+    
+    def unload_model(self) -> None:
+        """Unload current model (clear active reference, keep cache intact)."""
+        if self._current_model_id is not None:
+            logger.info(f"Unloading active model {self._current_model_id} (cache preserved)")
         
+        self._pipeline = None
         self._current_model_id = None
         self._current_model_path = None
+    
+    def get_status(self) -> dict:
+        """Get engine status including cache info.
+        
+        Returns:
+            Dictionary with engine status for /v1/status endpoint
+        """
+        return {
+            'loaded_model_id': self._current_model_id,
+            'is_mock': self.is_mock,
+            'cached_models': list(self._model_cache.keys()),
+            'max_cached_models': self.max_cached_models,
+        }
     
     def txt2img(self, params: dict) -> str:
         """Run txt2img inference.

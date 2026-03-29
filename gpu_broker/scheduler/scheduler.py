@@ -291,18 +291,19 @@ class TaskScheduler:
                     if self._engine.loaded_model_id != task['model_id']:
                         # Unload current model if any
                         if self._engine.loaded_model_id:
-                            self._engine.unload_model()
+                            await asyncio.to_thread(self._engine.unload_model)
                         
-                        # Load new model
-                        self._engine.load_model(
+                        # Load new model (offloaded to thread to avoid blocking event loop)
+                        await asyncio.to_thread(
+                            self._engine.load_model,
                             task['model_id'],
                             model['path'],
                             model['format']
                         )
                     
-                    # Parse params and run inference
+                    # Parse params and run inference (offloaded to thread)
                     params = json.loads(task['params'])
-                    result_path = self._engine.txt2img(params)
+                    result_path = await asyncio.to_thread(self._engine.txt2img, params)
                     
                     # Update to completed
                     async with aiosqlite.connect(self.db_path) as db:
