@@ -101,6 +101,140 @@ def cli():
     )
 
 
+# ============================= generate (txt2img shortcut) =================
+
+def _parse_lora(lora_strings: tuple) -> list:
+    """Parse --lora "name:weight" strings into API-compatible list.
+
+    Each string may be "name_or_id:weight" or just "name_or_id" (weight
+    defaults to 0.8).
+    """
+    result = []
+    for raw in lora_strings:
+        if ":" in raw:
+            parts = raw.rsplit(":", 1)
+            name_or_id = parts[0]
+            try:
+                weight = float(parts[1])
+            except ValueError:
+                # Whole string is the name (contains colon in name?)
+                name_or_id = raw
+                weight = 0.8
+        else:
+            name_or_id = raw
+            weight = 0.8
+        result.append({"model_id": name_or_id, "weight": weight})
+    return result
+
+
+@cli.command(name="generate")
+@click.option("--model", "-m", required=True, help="Model name or ID")
+@click.option("--prompt", "-p", required=True, help="Positive prompt text")
+@click.option("--negative", "-n", default="", help="Negative prompt (default: empty)")
+@click.option("--width", "-W", default=1024, type=int, help="Image width (default: 1024)")
+@click.option("--height", "-H", default=1024, type=int, help="Image height (default: 1024)")
+@click.option("--steps", default=20, type=int, help="Sampling steps (default: 20)")
+@click.option("--cfg", default=7.0, type=float, help="CFG scale (default: 7.0)")
+@click.option("--seed", default=None, type=int, help="Random seed (default: random)")
+@click.option("--lora", multiple=True, help='LoRA as "name_or_id:weight", repeatable')
+@click.option("--output", "-o", default=None, type=click.Path(), help="Save image to this path")
+@click.option("--wait", is_flag=True, help="Block until task completes")
+@click.option("--host", default="localhost", help="Daemon host")
+@click.option("--port", default=None, type=int, help="Daemon port")
+def generate(model, prompt, negative, width, height, steps, cfg, seed,
+             lora, output, wait, host, port):
+    """Generate an image via txt2img (user-friendly shortcut).
+
+    \b
+    Examples:
+      gpu-broker generate -m SDXLRonghua_v45 -p "a cat on the moon"
+      gpu-broker generate -m mymodel -p "landscape" --steps 30 --cfg 3.5 --wait
+      gpu-broker generate -m mymodel -p "girl" --lora "princess_xl:0.8" --wait -o out.png
+    """
+    port = port or _load_port_from_config()
+
+    # Build LoRA list
+    lora_list = _parse_lora(lora)
+
+    # Construct payload matching TaskSubmitRequest schema
+    payload = {
+        "type": "txt2img",
+        "model": model,
+        "input": {
+            "prompt": prompt,
+            "negative_prompt": negative,
+        },
+        "params": {
+            "width": width,
+            "height": height,
+            "steps": steps,
+            "cfg_scale": cfg,
+        },
+    }
+    if seed is not None:
+        payload["params"]["seed"] = seed
+    if lora_list:
+        payload["params"]["lora"] = lora_list
+
+    api_url = f"{_daemon_url(host, port)}/v1/tasks"
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(api_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result.get("task_id")
+
+            if not wait:
+                output_json(result)
+                return
+
+            # Polling loop
+            status_url = f"{api_url}/{task_id}"
+            while True:
+                time.sleep(2)
+                status_resp = client.get(status_url)
+                status_resp.raise_for_status()
+                task_info = status_resp.json()
+                st = task_info.get("status")
+
+                if st in ("completed", "failed", "cancelled"):
+                    # Download image if --output specified and task completed
+                    if st == "completed" and output:
+                        try:
+                            img_resp = client.get(f"{api_url}/{task_id}/image", timeout=60.0)
+                            img_resp.raise_for_status()
+                            from pathlib import Path as _Path
+                            out_path = _Path(output)
+                            out_path.parent.mkdir(parents=True, exist_ok=True)
+                            out_path.write_bytes(img_resp.content)
+                            task_info["output_path"] = str(out_path.resolve())
+                        except Exception as e:
+                            task_info["output_error"] = str(e)
+
+                    output_json(task_info)
+                    if st == "failed":
+                        sys.exit(EXIT_ERROR)
+                    return
+
+    except httpx.ConnectError:
+        output_error(
+            "Daemon not running. Start it with: gpu-broker daemon start",
+            code="daemon_not_running",
+        )
+        sys.exit(EXIT_DAEMON_NOT_RUNNING)
+    except httpx.HTTPStatusError as e:
+        try:
+            detail = e.response.json().get("detail", str(e))
+        except Exception:
+            detail = str(e)
+        output_error(detail)
+        sys.exit(EXIT_ERROR)
+    except Exception as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+
+
 # ============================= daemon =====================================
 
 @cli.group()
