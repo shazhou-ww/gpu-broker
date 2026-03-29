@@ -14,10 +14,11 @@ async def init_db():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     async with aiosqlite.connect(DB_PATH) as db:
-        # Create models table
+        # Create models table — updated schema with sha256
         await db.execute("""
             CREATE TABLE IF NOT EXISTS models (
-                id            TEXT PRIMARY KEY,
+                id            TEXT PRIMARY KEY,     -- SHA256 short ID (12 chars)
+                sha256        TEXT NOT NULL DEFAULT '' UNIQUE, -- Full SHA256 hash
                 name          TEXT NOT NULL,
                 source        TEXT NOT NULL CHECK(source IN ('huggingface', 'civitai', 'local')),
                 source_url    TEXT,
@@ -30,6 +31,26 @@ async def init_db():
                 updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        
+        # ── Migration: add sha256 column if missing (pre-existing DB) ──
+        try:
+            await db.execute("SELECT sha256 FROM models LIMIT 1")
+        except Exception:
+            logger.info("Migrating models table: adding sha256 column")
+            await db.execute(
+                "ALTER TABLE models ADD COLUMN sha256 TEXT NOT NULL DEFAULT ''"
+            )
+            # Backfill: use existing id as sha256 placeholder
+            await db.execute(
+                "UPDATE models SET sha256 = id WHERE sha256 = ''"
+            )
+            # Try to create unique index (may fail if duplicates exist)
+            try:
+                await db.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_models_sha256 ON models(sha256)"
+                )
+            except Exception as idx_err:
+                logger.warning(f"Could not create unique sha256 index: {idx_err}")
         
         # Create tasks table
         await db.execute("""

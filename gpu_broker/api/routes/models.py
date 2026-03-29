@@ -2,7 +2,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from gpu_broker.api.schemas import (
-    ModelListResponse, ModelInfo, ModelPullRequest
+    ModelListResponse, ModelInfo, ModelDownloadRequest, ModelPullRequest
 )
 from gpu_broker.config import DB_PATH, MODELS_DIR
 from gpu_broker.models.manager import ModelManager
@@ -28,12 +28,15 @@ async def list_models():
 
 @router.get("/{model_id}", response_model=ModelInfo)
 async def get_model(model_id: str):
-    """Get model information by ID."""
+    """Get model information by ID (supports short ID, SHA256 prefix, or name)."""
     try:
         model = model_manager.get(model_id)
         if not model:
             raise HTTPException(status_code=404, detail="Model not found")
         return ModelInfo(**model)
+    except ValueError as e:
+        # Ambiguous match
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -41,9 +44,42 @@ async def get_model(model_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── New endpoint: download by URL (auto-detect source) ────────────────
+
+def _download_model_background(url: str):
+    """Background task to download a model from URL."""
+    try:
+        model_manager.download(url)
+        logger.info(f"Successfully downloaded model from {url}")
+    except Exception as e:
+        logger.error(f"Failed to download model from {url}: {e}")
+
+
+@router.post("/download", status_code=202)
+async def download_model(request: ModelDownloadRequest, background_tasks: BackgroundTasks):
+    """Download a model from URL (auto-detect HuggingFace or Civitai).
+    
+    Returns 202 Accepted and starts download in background.
+    """
+    try:
+        # Validate URL can be parsed before accepting
+        model_manager._detect_source(request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    background_tasks.add_task(_download_model_background, request.url)
+    
+    return {
+        "status": "accepted",
+        "message": f"Download started from {request.url}",
+    }
+
+
+# ── Legacy endpoint: pull (kept for backward compatibility) ───────────
+
 def _pull_model_background(source: str, repo_id: str = None, 
                            url: str = None, filename: str = None):
-    """Background task to pull a model."""
+    """Background task to pull a model (legacy)."""
     try:
         model_manager.pull(source=source, repo_id=repo_id, url=url, filename=filename)
         logger.info(f"Successfully pulled model from {source}")
@@ -53,12 +89,11 @@ def _pull_model_background(source: str, repo_id: str = None,
 
 @router.post("/pull", status_code=202)
 async def pull_model(request: ModelPullRequest, background_tasks: BackgroundTasks):
-    """Trigger model download (async, returns 202 immediately).
+    """Legacy: trigger model download (async, returns 202 immediately).
     
-    Returns 202 Accepted and starts download in background.
+    Prefer POST /v1/models/download with a URL instead.
     """
     try:
-        # Validate request
         if request.source == 'huggingface' and not request.repo_id:
             raise HTTPException(
                 status_code=400, 
@@ -70,18 +105,17 @@ async def pull_model(request: ModelPullRequest, background_tasks: BackgroundTask
                 detail="url is required for Civitai models"
             )
         
-        # Start download in background
         background_tasks.add_task(
             _pull_model_background,
             source=request.source,
             repo_id=request.repo_id,
             url=request.url,
-            filename=request.filename
+            filename=request.filename,
         )
         
         return {
             "status": "accepted",
-            "message": f"Model download started from {request.source}"
+            "message": f"Model download started from {request.source}",
         }
         
     except HTTPException:
@@ -93,12 +127,14 @@ async def pull_model(request: ModelPullRequest, background_tasks: BackgroundTask
 
 @router.delete("/{model_id}", status_code=200)
 async def delete_model(model_id: str):
-    """Delete a model."""
+    """Delete a model (supports short ID, SHA256 prefix, or name)."""
     try:
         success = model_manager.delete(model_id)
         if not success:
             raise HTTPException(status_code=404, detail="Model not found")
         return {"status": "deleted", "model_id": model_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

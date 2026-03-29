@@ -21,12 +21,15 @@ async def submit_task(request: TaskSubmitRequest, req: Request):
     try:
         scheduler = req.app.state.scheduler
         
-        # Convert Pydantic model to dict
-        params = request.params.model_dump()
+        # Assemble params: merge prompt/negative_prompt into the extra params dict
+        params = dict(request.params) if request.params else {}
+        params["prompt"] = request.prompt
+        if request.negative_prompt:
+            params["negative_prompt"] = request.negative_prompt
         
         task_id = await scheduler.submit(
             task_type=request.type,
-            model_id=request.model_id,
+            model_id=request.model,
             params=params
         )
         

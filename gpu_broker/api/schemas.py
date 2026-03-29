@@ -36,7 +36,8 @@ class StatusResponse(BaseModel):
 
 class ModelInfo(BaseModel):
     """Model information."""
-    id: str
+    id: str             # SHA256 short ID (12 chars)
+    sha256: str = ''    # Full SHA256 hash
     name: str
     source: Literal['huggingface', 'civitai', 'local']
     source_url: Optional[str] = None
@@ -55,8 +56,13 @@ class ModelListResponse(BaseModel):
     count: int = 0
 
 
+class ModelDownloadRequest(BaseModel):
+    """Request model for downloading a model by URL (auto-detect source)."""
+    url: str
+
+
 class ModelPullRequest(BaseModel):
-    """Request model for pulling a model."""
+    """Legacy request model for pulling a model. Kept for backward compatibility."""
     source: Literal['huggingface', 'civitai']
     repo_id: Optional[str] = None  # For HuggingFace
     url: Optional[str] = None      # For Civitai
@@ -75,10 +81,16 @@ class Txt2ImgParams(BaseModel):
 
 
 class TaskSubmitRequest(BaseModel):
-    """Request model for task submission."""
+    """Request model for task submission (new JSON format).
+    
+    The 'model' field accepts a short ID, full SHA256 hash, or model name.
+    resolve_id() will find the matching model.
+    """
     type: Literal['txt2img'] = 'txt2img'
-    model_id: str
-    params: Txt2ImgParams
+    model: str               # Short ID, full hash, or name (resolve_id will find it)
+    prompt: str
+    negative_prompt: Optional[str] = ""
+    params: Optional[dict] = Field(default_factory=dict)  # width, height, steps, etc.
 
 
 class TaskInfo(BaseModel):
