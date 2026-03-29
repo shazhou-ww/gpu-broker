@@ -99,6 +99,10 @@ class TaskSubmitRequest(BaseModel):
       - tts:     {"text": "hello world", "voice": "en-US-1"}
       - stt:     {"audio_path": "/path/to/audio.wav"}
       - llm:     {"messages": [{"role": "user", "content": "hi"}]}
+    
+    LoRA support in params:
+      - Single LoRA:   {"lora": "model_id", "lora_weight": 0.8}
+      - Multiple LoRAs: {"lora": [{"model_id": "id1", "weight": 0.8}, {"model_id": "id2", "weight": 0.5}]}
     """
     type: str = 'txt2img'            # Not restricted to enum
     model: str                       # Short ID, full hash, or name

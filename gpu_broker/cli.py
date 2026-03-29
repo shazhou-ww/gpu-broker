@@ -24,6 +24,7 @@ from gpu_broker.config import (
     load_config,
     set_config,
 )
+from gpu_broker.models.manager import ModelManager
 
 # ---------------------------------------------------------------------------
 # Exit codes
@@ -228,27 +229,21 @@ def model():
 @model.command(name="download")
 @click.argument("url")
 @click.option("--name", default=None, help="Custom filename override")
-@click.option("--host", default="localhost", help="Daemon host")
-@click.option("--port", default=None, type=int, help="Daemon port")
-def model_download(url: str, name: str, host: str, port: int):
+@click.option("--type", "model_type", default="checkpoint",
+              type=click.Choice(["checkpoint", "lora"]),
+              help="Model type (default: checkpoint)")
+def model_download(url: str, name: str, model_type: str):
     """Download a model from a URL (HuggingFace or Civitai auto-detected)."""
-    port = port or _load_port_from_config()
-    api_url = f"{_daemon_url(host, port)}/v1/models/download"
-
-    # New unified download endpoint: just send the URL
-    data = {"url": url}
+    manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
-        with httpx.Client(timeout=10.0) as client:
-            response = client.post(api_url, json=data)
-            response.raise_for_status()
-            output_json(response.json())
-    except httpx.ConnectError:
-        output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
-        sys.exit(EXIT_DAEMON_NOT_RUNNING)
-    except httpx.HTTPStatusError as e:
-        detail = e.response.json().get("detail", str(e))
-        output_error(detail)
+        result = manager.download(url, model_type=model_type)
+        output_json(result)
+    except ValueError as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+    except RuntimeError as e:
+        output_error(str(e))
         sys.exit(EXIT_ERROR)
     except Exception as e:
         output_error(str(e))
@@ -256,21 +251,16 @@ def model_download(url: str, name: str, host: str, port: int):
 
 
 @model.command(name="list")
-@click.option("--host", default="localhost", help="Daemon host")
-@click.option("--port", default=None, type=int, help="Daemon port")
-def model_list(host: str, port: int):
+@click.option("--type", "model_type", default=None,
+              type=click.Choice(["checkpoint", "lora"]),
+              help="Filter by model type")
+def model_list(model_type: str):
     """List available models."""
-    port = port or _load_port_from_config()
-    api_url = f"{_daemon_url(host, port)}/v1/models"
+    manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
-        with httpx.Client(timeout=5.0) as client:
-            response = client.get(api_url)
-            response.raise_for_status()
-            output_json(response.json())
-    except httpx.ConnectError:
-        output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
-        sys.exit(EXIT_DAEMON_NOT_RUNNING)
+        models = manager.list(model_type=model_type)
+        output_json({"models": models, "count": len(models)})
     except Exception as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -278,30 +268,18 @@ def model_list(host: str, port: int):
 
 @model.command(name="remove")
 @click.argument("model_id")
-@click.option("--host", default="localhost", help="Daemon host")
-@click.option("--port", default=None, type=int, help="Daemon port")
-def model_remove(model_id: str, host: str, port: int):
+def model_remove(model_id: str):
     """Remove a model by ID (supports SHA256 short-ID and name fuzzy match)."""
-    port = port or _load_port_from_config()
-    api_url = f"{_daemon_url(host, port)}/v1/models/{model_id}"
+    manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
-        with httpx.Client(timeout=5.0) as client:
-            response = client.delete(api_url)
-            if response.status_code == 404:
-                output_error(f"Model '{model_id}' not found")
-                sys.exit(EXIT_MODEL_NOT_FOUND)
-            response.raise_for_status()
-            output_json(response.json())
-    except httpx.ConnectError:
-        output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
-        sys.exit(EXIT_DAEMON_NOT_RUNNING)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
+        success = manager.delete(model_id)
+        if not success:
             output_error(f"Model '{model_id}' not found")
             sys.exit(EXIT_MODEL_NOT_FOUND)
-        detail = e.response.json().get("detail", str(e))
-        output_error(detail)
+        output_json({"status": "deleted", "model_id": model_id})
+    except ValueError as e:
+        output_error(str(e))
         sys.exit(EXIT_ERROR)
     except Exception as e:
         output_error(str(e))
@@ -310,30 +288,18 @@ def model_remove(model_id: str, host: str, port: int):
 
 @model.command(name="info")
 @click.argument("model_id")
-@click.option("--host", default="localhost", help="Daemon host")
-@click.option("--port", default=None, type=int, help="Daemon port")
-def model_info(model_id: str, host: str, port: int):
+def model_info(model_id: str):
     """Show model details."""
-    port = port or _load_port_from_config()
-    api_url = f"{_daemon_url(host, port)}/v1/models/{model_id}"
+    manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
-        with httpx.Client(timeout=5.0) as client:
-            response = client.get(api_url)
-            if response.status_code == 404:
-                output_error(f"Model '{model_id}' not found")
-                sys.exit(EXIT_MODEL_NOT_FOUND)
-            response.raise_for_status()
-            output_json(response.json())
-    except httpx.ConnectError:
-        output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
-        sys.exit(EXIT_DAEMON_NOT_RUNNING)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
+        info = manager.get(model_id)
+        if not info:
             output_error(f"Model '{model_id}' not found")
             sys.exit(EXIT_MODEL_NOT_FOUND)
-        detail = e.response.json().get("detail", str(e))
-        output_error(detail)
+        output_json(info)
+    except ValueError as e:
+        output_error(str(e))
         sys.exit(EXIT_ERROR)
     except Exception as e:
         output_error(str(e))
@@ -343,16 +309,24 @@ def model_info(model_id: str, host: str, port: int):
 @model.command(name="add")
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--name", default=None, help="Custom model name")
+@click.option("--type", "model_type", default="checkpoint",
+              type=click.Choice(["checkpoint", "lora"]),
+              help="Model type (default: checkpoint)")
 @click.option("--lookup", is_flag=True, help="Lookup model info from Civitai by hash")
 @click.option("--copy", "strategy", flag_value="copy", help="Copy to models directory")
 @click.option("--move", "strategy", flag_value="move", help="Move to models directory")
-def model_add(path, name, lookup, strategy):
+def model_add(path, name, model_type, lookup, strategy):
     """Register a local model file or directory.
 
     \b
     Supports:
       - .safetensors / .ckpt files
       - Diffusers directories (with model_index.json)
+
+    \b
+    Model types:
+      --type checkpoint  (default) Base model checkpoint
+      --type lora        LoRA adapter weights
 
     \b
     File strategy (default: symlink):
@@ -363,6 +337,7 @@ def model_add(path, name, lookup, strategy):
     Examples:
       gpu-broker model add /path/to/model.safetensors
       gpu-broker model add /path/to/model.safetensors --name "my-model"
+      gpu-broker model add /path/to/lora.safetensors --type lora
       gpu-broker model add /path/to/model.safetensors --lookup
       gpu-broker model add /path/to/model.safetensors --copy
     """
@@ -379,6 +354,7 @@ def model_add(path, name, lookup, strategy):
             name=name,
             lookup=lookup,
             strategy=strategy,
+            model_type=model_type,
         )
         output_json(result)
     except FileNotFoundError as e:

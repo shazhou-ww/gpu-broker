@@ -303,7 +303,52 @@ class TaskScheduler:
                     
                     # Parse params and run inference (offloaded to thread)
                     params = json.loads(task['params'])
+                    
+                    # Load LoRA adapters if specified
+                    lora_specs = params.pop('lora', None)
+                    lora_weight_default = params.pop('lora_weight', 0.8)
+                    
+                    if lora_specs:
+                        # Normalize to list of dicts
+                        if isinstance(lora_specs, str):
+                            # Single LoRA: {"lora": "model_id", "lora_weight": 0.8}
+                            lora_list = [{'model_id': lora_specs, 'weight': lora_weight_default}]
+                        elif isinstance(lora_specs, list):
+                            # Multiple LoRAs: [{"model_id": "xxx", "weight": 0.8}, ...]
+                            lora_list = []
+                            for spec in lora_specs:
+                                if isinstance(spec, str):
+                                    lora_list.append({'model_id': spec, 'weight': lora_weight_default})
+                                elif isinstance(spec, dict):
+                                    lora_list.append({
+                                        'model_id': spec.get('model_id', spec.get('id', '')),
+                                        'weight': spec.get('weight', lora_weight_default),
+                                    })
+                        else:
+                            lora_list = []
+                        
+                        for lora_spec in lora_list:
+                            lora_model = self._model_manager.get(lora_spec['model_id'])
+                            if not lora_model:
+                                raise ValueError(f"LoRA model '{lora_spec['model_id']}' not found")
+                            if lora_model.get('type') != 'lora':
+                                logger.warning(
+                                    f"Model '{lora_spec['model_id']}' is type "
+                                    f"'{lora_model.get('type')}', expected 'lora'"
+                                )
+                            await asyncio.to_thread(
+                                self._engine.load_lora,
+                                lora_model['id'],
+                                lora_model['path'],
+                                lora_model.get('name', ''),
+                                lora_spec['weight'],
+                            )
+                    
                     result_path = await asyncio.to_thread(self._engine.txt2img, params)
+                    
+                    # Unload LoRAs after inference
+                    if lora_specs:
+                        await asyncio.to_thread(self._engine.unload_loras)
                     
                     # Update to completed
                     async with aiosqlite.connect(self.db_path) as db:

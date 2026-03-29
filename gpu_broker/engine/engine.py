@@ -38,6 +38,9 @@ class InferenceEngine:
         self._model_cache: OrderedDict = OrderedDict()
         self.max_cached_models: int = max_cached_models
         
+        # LoRA tracking
+        self._current_loras: list[dict] = []
+        
         logger.info(f"InferenceEngine initialized (mock={self.is_mock}, max_cached={max_cached_models})")
     
     @property
@@ -144,6 +147,62 @@ class InferenceEngine:
         self._pipeline = None
         self._current_model_id = None
         self._current_model_path = None
+        self._current_loras = []
+    
+    def load_lora(self, lora_id: str, lora_path: str, lora_name: str = '',
+                  lora_weight: float = 0.8) -> None:
+        """Load a LoRA adapter on top of the current base model.
+        
+        Args:
+            lora_id: LoRA model identifier
+            lora_path: Path to the LoRA weights file
+            lora_name: Display name for the LoRA
+            lora_weight: LoRA scale/weight (0.0 - 1.0, default 0.8)
+        """
+        if self._current_model_id is None:
+            raise RuntimeError("No base model loaded — load a checkpoint first")
+        
+        lora_info = {
+            'id': lora_id,
+            'name': lora_name or lora_id,
+            'path': lora_path,
+            'weight': lora_weight,
+        }
+        
+        if self.is_mock:
+            logger.info(f"Mock mode: pretending to load LoRA {lora_id} (weight={lora_weight})")
+            self._current_loras.append(lora_info)
+            return
+        
+        try:
+            logger.info(f"Loading LoRA {lora_id} from {lora_path} (weight={lora_weight})")
+            self._pipeline.load_lora_weights(lora_path)
+            self._pipeline.fuse_lora(lora_scale=lora_weight)
+            self._current_loras.append(lora_info)
+            logger.info(f"Successfully loaded LoRA {lora_id}")
+        except Exception as e:
+            logger.error(f"Failed to load LoRA {lora_id}: {e}")
+            raise
+    
+    def unload_loras(self) -> None:
+        """Unload all currently applied LoRA adapters."""
+        if not self._current_loras:
+            return
+        
+        if self.is_mock:
+            logger.info(f"Mock mode: unloading {len(self._current_loras)} LoRA(s)")
+            self._current_loras = []
+            return
+        
+        try:
+            logger.info(f"Unloading {len(self._current_loras)} LoRA(s)")
+            self._pipeline.unfuse_lora()
+            self._pipeline.unload_lora_weights()
+            self._current_loras = []
+            logger.info("LoRAs unloaded successfully")
+        except Exception as e:
+            logger.warning(f"Error unloading LoRAs: {e}")
+            self._current_loras = []
     
     def get_status(self) -> dict:
         """Get engine status including cache info.
@@ -156,6 +215,10 @@ class InferenceEngine:
             'is_mock': self.is_mock,
             'cached_models': list(self._model_cache.keys()),
             'max_cached_models': self.max_cached_models,
+            'loaded_loras': [
+                {'id': l['id'], 'name': l['name'], 'weight': l['weight']}
+                for l in self._current_loras
+            ],
         }
     
     def txt2img(self, params: dict) -> str:
@@ -307,6 +370,13 @@ class InferenceEngine:
             f"CFG Scale: {cfg_scale}",
             f"Seed: {seed if seed is not None else 'random'}"
         ]
+        
+        # Add LoRA info if any are loaded
+        if self._current_loras:
+            params_text.append("")
+            params_text.append("LoRA adapters:")
+            for lora in self._current_loras:
+                params_text.append(f"  - {lora['name']} (weight={lora['weight']})")
         
         for line in params_text:
             draw.text((20, y_offset), line, fill=(100, 100, 100), font=font_tiny)

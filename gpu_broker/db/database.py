@@ -25,7 +25,8 @@ async def init_db():
                 path          TEXT NOT NULL,
                 format        TEXT NOT NULL DEFAULT 'diffusers',
                 size_bytes    INTEGER NOT NULL DEFAULT 0,
-                type          TEXT NOT NULL DEFAULT 'checkpoint',
+                type          TEXT NOT NULL DEFAULT 'checkpoint'
+                              CHECK(type IN ('checkpoint', 'lora')),
                 trigger_words TEXT,
                 pulled_at     TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at    TEXT NOT NULL DEFAULT (datetime('now'))

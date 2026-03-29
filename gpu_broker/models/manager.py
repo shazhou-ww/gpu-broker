@@ -158,7 +158,7 @@ class ModelManager:
     
     # ── Download (new unified entry point) ────────────────────────────
     
-    def download(self, url: str) -> dict:
+    def download(self, url: str, model_type: str = 'checkpoint') -> dict:
         """Download a model from URL, auto-detect source.
         
         Supported URLs:
@@ -166,15 +166,22 @@ class ModelManager:
             - https://huggingface.co/<org>/<repo>/blob/main/<file>
             - https://civitai.com/models/<id>
             - https://civitai.com/api/download/models/<id>
+        
+        Args:
+            url: Model URL
+            model_type: 'checkpoint' or 'lora'
             
         Returns:
             Model info dictionary
         """
+        if model_type not in ('checkpoint', 'lora'):
+            raise ValueError(f"Invalid model type: {model_type}. Must be 'checkpoint' or 'lora'")
+        
         source = self._detect_source(url)
         if source == 'huggingface':
-            return self._download_huggingface(url)
+            return self._download_huggingface(url, model_type=model_type)
         elif source == 'civitai':
-            return self._download_civitai(url)
+            return self._download_civitai(url, model_type=model_type)
         else:
             raise ValueError(f"Unsupported URL: {url}. Supported: huggingface.co, civitai.com")
     
@@ -200,11 +207,12 @@ class ModelManager:
     
     # ── HuggingFace download ──────────────────────────────────────────
     
-    def _download_huggingface(self, url: str) -> dict:
+    def _download_huggingface(self, url: str, model_type: str = 'checkpoint') -> dict:
         """Download a model from HuggingFace Hub.
         
         Args:
             url: HuggingFace URL (repo or specific file)
+            model_type: 'checkpoint' or 'lora'
             
         Returns:
             Model info dictionary
@@ -256,7 +264,7 @@ class ModelManager:
                 'path': str(local_path),
                 'format': model_format,
                 'size_bytes': size_bytes,
-                'type': 'checkpoint',
+                'type': model_type,
                 'trigger_words': None,
                 'pulled_at': datetime.now().isoformat(),
                 'updated_at': datetime.now().isoformat(),
@@ -264,7 +272,7 @@ class ModelManager:
             
             self._upsert_model(model_info)
             
-            logger.info(f"Successfully downloaded {repo_id} ({size_bytes} bytes) id={short_id}")
+            logger.info(f"Successfully downloaded {repo_id} ({size_bytes} bytes) id={short_id} type={model_type}")
             return model_info
             
         except Exception as e:
@@ -273,12 +281,14 @@ class ModelManager:
     
     # ── Civitai download ──────────────────────────────────────────────
     
-    def _download_civitai(self, url: str, filename: Optional[str] = None) -> dict:
+    def _download_civitai(self, url: str, filename: Optional[str] = None,
+                          model_type: str = 'checkpoint') -> dict:
         """Download a model from Civitai.
         
         Args:
             url: Civitai URL (page or direct download)
             filename: Custom filename (optional)
+            model_type: 'checkpoint' or 'lora'
             
         Returns:
             Model info dictionary
@@ -327,7 +337,7 @@ class ModelManager:
                 'path': str(local_path),
                 'format': 'safetensors',
                 'size_bytes': size_bytes,
-                'type': 'checkpoint',
+                'type': model_type,
                 'trigger_words': None,
                 'pulled_at': datetime.now().isoformat(),
                 'updated_at': datetime.now().isoformat(),
@@ -335,7 +345,7 @@ class ModelManager:
             
             self._upsert_model(model_info)
             
-            logger.info(f"Successfully downloaded {filename} ({size_bytes} bytes) id={short_id}")
+            logger.info(f"Successfully downloaded {filename} ({size_bytes} bytes) id={short_id} type={model_type}")
             return model_info
             
         except requests.RequestException as e:
@@ -352,7 +362,8 @@ class ModelManager:
     # ── Local model registration ─────────────────────────────────────
 
     def add_local(self, path: str, name: Optional[str] = None,
-                  lookup: bool = False, strategy: str = 'symlink') -> dict:
+                  lookup: bool = False, strategy: str = 'symlink',
+                  model_type: str = 'checkpoint') -> dict:
         """Register a local model file/directory.
 
         Args:
@@ -360,6 +371,7 @@ class ModelManager:
             name: Custom name, auto-detect if None
             lookup: Whether to lookup metadata from Civitai by hash
             strategy: 'symlink' (default), 'copy', or 'move'
+            model_type: 'checkpoint' or 'lora'
 
         Returns:
             dict with model info including short_id
@@ -368,6 +380,8 @@ class ModelManager:
             FileNotFoundError: path doesn't exist
             ValueError: unrecognized format or model already registered
         """
+        if model_type not in ('checkpoint', 'lora'):
+            raise ValueError(f"Invalid model type: {model_type}. Must be 'checkpoint' or 'lora'")
         resolved = Path(path).resolve()
         if not resolved.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
@@ -471,7 +485,7 @@ class ModelManager:
             'path': str(target_path),
             'format': model_format,
             'size_bytes': size_bytes,
-            'type': 'checkpoint',
+            'type': model_type,
             'trigger_words': trigger_words,
             'pulled_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat(),
@@ -481,7 +495,7 @@ class ModelManager:
 
         logger.info(
             f"Registered local model '{name}' id={short_id} "
-            f"strategy={strategy} format={model_format}"
+            f"strategy={strategy} format={model_format} type={model_type}"
         )
         return model_info
 
@@ -589,15 +603,28 @@ class ModelManager:
     
     # ── List / Get / Delete ───────────────────────────────────────────
     
-    def list(self) -> list[dict]:
-        """List all downloaded models."""
+    def list(self, model_type: Optional[str] = None) -> list[dict]:
+        """List all downloaded models.
+        
+        Args:
+            model_type: Filter by type ('checkpoint' or 'lora'). None for all.
+        """
         with self._get_db() as conn:
-            cursor = conn.execute("""
-                SELECT id, sha256, name, source, source_url, path, format,
-                       size_bytes, type, trigger_words, pulled_at
-                FROM models
-                ORDER BY pulled_at DESC
-            """)
+            if model_type:
+                cursor = conn.execute("""
+                    SELECT id, sha256, name, source, source_url, path, format,
+                           size_bytes, type, trigger_words, pulled_at
+                    FROM models
+                    WHERE type = ?
+                    ORDER BY pulled_at DESC
+                """, (model_type,))
+            else:
+                cursor = conn.execute("""
+                    SELECT id, sha256, name, source, source_url, path, format,
+                           size_bytes, type, trigger_words, pulled_at
+                    FROM models
+                    ORDER BY pulled_at DESC
+                """)
             return [self._row_to_dict(row) for row in cursor.fetchall()]
     
     def get(self, model_id: str) -> Optional[dict]:
