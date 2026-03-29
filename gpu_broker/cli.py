@@ -193,22 +193,217 @@ def task():
 @task.command(name='submit')
 @click.option('--model', required=True, help='Model ID to use')
 @click.option('--prompt', required=True, help='Input prompt')
-def task_submit(model: str, prompt: str):
-    """Submit a new task."""
-    console.print(f"[yellow]Not implemented yet[/yellow]: submit task")
+@click.option('--negative-prompt', default='', help='Negative prompt')
+@click.option('--width', default=512, type=int, help='Image width')
+@click.option('--height', default=512, type=int, help='Image height')
+@click.option('--steps', default=20, type=int, help='Inference steps')
+@click.option('--cfg-scale', default=7.0, type=float, help='CFG scale')
+@click.option('--seed', type=int, help='Random seed')
+@click.option('--wait', is_flag=True, help='Wait for task completion')
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def task_submit(
+    model: str,
+    prompt: str,
+    negative_prompt: str,
+    width: int,
+    height: int,
+    steps: int,
+    cfg_scale: float,
+    seed: int,
+    wait: bool,
+    host: str,
+    port: int
+):
+    """Submit a new txt2img task.
+    
+    Example:
+      gpu-broker task submit --model test-model --prompt "a cat" --wait
+    """
+    api_url = f"http://{host}:{port}/v1/tasks"
+    
+    # Prepare request data
+    data = {
+        "type": "txt2img",
+        "model_id": model,
+        "params": {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "width": width,
+            "height": height,
+            "steps": steps,
+            "cfg_scale": cfg_scale
+        }
+    }
+    
+    if seed is not None:
+        data["params"]["seed"] = seed
+    
+    try:
+        import time
+        
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(api_url, json=data)
+            response.raise_for_status()
+            result = response.json()
+            
+            task_id = result['task_id']
+            console.print(f"[green]✓[/green] Task submitted: {task_id}")
+            
+            if wait:
+                console.print("[blue]Waiting for completion...[/blue]")
+                
+                status_url = f"http://{host}:{port}/v1/tasks/{task_id}"
+                while True:
+                    time.sleep(2)
+                    
+                    status_response = client.get(status_url)
+                    status_response.raise_for_status()
+                    task_info = status_response.json()
+                    
+                    status = task_info['status']
+                    
+                    if status == 'completed':
+                        console.print(f"[green]✓ Task completed![/green]")
+                        console.print(f"[blue]Result:[/blue] {task_info['result_path']}")
+                        console.print(f"[blue]Download:[/blue] http://{host}:{port}/v1/tasks/{task_id}/image")
+                        break
+                    elif status == 'failed':
+                        console.print(f"[red]✗ Task failed:[/red] {task_info.get('error', 'unknown error')}")
+                        break
+                    elif status == 'cancelled':
+                        console.print(f"[yellow]Task was cancelled[/yellow]")
+                        break
+                    else:
+                        console.print(f"[dim]Status: {status}...[/dim]")
+    
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.json().get('detail', str(e))
+        console.print(f"[red]Error:[/red] {error_detail}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 @task.command(name='status')
 @click.argument('task_id')
-def task_status(task_id: str):
-    """Get task status."""
-    console.print(f"[yellow]Not implemented yet[/yellow]: status for {task_id}")
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def task_status(task_id: str, host: str, port: int):
+    """Get task status.
+    
+    Example:
+      gpu-broker task status tsk_abc123
+    """
+    api_url = f"http://{host}:{port}/v1/tasks/{task_id}"
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(api_url)
+            
+            if response.status_code == 404:
+                console.print(f"[red]Error:[/red] Task '{task_id}' not found")
+                return
+            
+            response.raise_for_status()
+            task = response.json()
+            
+            table = Table(title=f"Task {task_id}")
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="green")
+            
+            table.add_row("Status", task['status'])
+            table.add_row("Type", task['type'])
+            table.add_row("Model", task['model_id'])
+            table.add_row("Created", task['created_at'])
+            
+            if task['started_at']:
+                table.add_row("Started", task['started_at'])
+            
+            if task['completed_at']:
+                table.add_row("Completed", task['completed_at'])
+            
+            if task['result_path']:
+                table.add_row("Result", task['result_path'])
+                table.add_row("Download", f"http://{host}:{port}/v1/tasks/{task_id}/image")
+            
+            if task['error']:
+                table.add_row("Error", task['error'])
+            
+            console.print(table)
+            
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 @task.command(name='list')
-def task_list():
-    """List all tasks."""
-    console.print("[yellow]No tasks found[/yellow]")
+@click.option('--status', help='Filter by status')
+@click.option('--model', 'model_id', help='Filter by model ID')
+@click.option('--limit', default=20, type=int, help='Max results')
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def task_list(status: str, model_id: str, limit: int, host: str, port: int):
+    """List all tasks.
+    
+    Example:
+      gpu-broker task list
+      gpu-broker task list --status completed
+      gpu-broker task list --model test-model
+    """
+    api_url = f"http://{host}:{port}/v1/tasks"
+    params = {"limit": limit}
+    
+    if status:
+        params['status'] = status
+    if model_id:
+        params['model_id'] = model_id
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(api_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            tasks = data.get('tasks', [])
+            if not tasks:
+                console.print("[yellow]No tasks found[/yellow]")
+                console.print("\n[blue]Tip:[/blue] Submit a task with: gpu-broker task submit --model <model_id> --prompt <prompt>")
+                return
+            
+            table = Table(title=f"Tasks ({data.get('count', 0)})")
+            table.add_column("ID", style="cyan")
+            table.add_column("Status", style="magenta")
+            table.add_column("Model", style="blue")
+            table.add_column("Created", style="yellow")
+            
+            for task in tasks:
+                status_color = {
+                    'pending': 'yellow',
+                    'running': 'blue',
+                    'completed': 'green',
+                    'failed': 'red',
+                    'cancelled': 'dim'
+                }.get(task['status'], 'white')
+                
+                table.add_row(
+                    task['id'],
+                    f"[{status_color}]{task['status']}[/{status_color}]",
+                    task['model_id'],
+                    task['created_at']
+                )
+            
+            console.print(table)
+            
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 # Alias for task list

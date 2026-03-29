@@ -3,10 +3,35 @@ from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field
 
 
+class GPUInfo(BaseModel):
+    """GPU information."""
+    name: str
+    vram_total_mb: int
+    vram_used_mb: int
+    vram_free_mb: int
+    cuda_version: str
+
+
+class LoadedModelInfo(BaseModel):
+    """Loaded model information."""
+    id: str
+    loaded_at: str
+
+
+class QueueStats(BaseModel):
+    """Queue statistics."""
+    pending: int
+    running: int
+    completed_today: int
+
+
 class StatusResponse(BaseModel):
     """Response model for status endpoint."""
     status: str
     version: str
+    gpu: Optional[GPUInfo] = None
+    loaded_model: Optional[LoadedModelInfo] = None
+    queue: Optional[QueueStats] = None
 
 
 class ModelInfo(BaseModel):
