@@ -49,23 +49,135 @@ def model():
 
 
 @model.command(name='pull')
-@click.argument('model_id')
-def model_pull(model_id: str):
-    """Pull a model from Hugging Face."""
-    console.print(f"[yellow]Not implemented yet[/yellow]: pull {model_id}")
+@click.argument('repo_id', required=False)
+@click.option('--source', type=click.Choice(['huggingface', 'civitai']), default='huggingface', help='Model source')
+@click.option('--url', help='Civitai download URL (required for Civitai)')
+@click.option('--name', help='Custom filename for Civitai models')
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def model_pull(repo_id: str, source: str, url: str, name: str, host: str, port: int):
+    """Pull a model from HuggingFace or Civitai.
+    
+    Examples:
+      gpu-broker model pull runwayml/stable-diffusion-v1-5
+      gpu-broker model pull --source civitai --url https://civitai.com/... --name dreamshaper_8
+    """
+    # Validate arguments
+    if source == 'huggingface' and not repo_id:
+        console.print("[red]Error:[/red] repo_id is required for HuggingFace models")
+        console.print("[yellow]Example:[/yellow] gpu-broker model pull runwayml/stable-diffusion-v1-5")
+        return
+    
+    if source == 'civitai' and not url:
+        console.print("[red]Error:[/red] --url is required for Civitai models")
+        console.print("[yellow]Example:[/yellow] gpu-broker model pull --source civitai --url https://civitai.com/... --name dreamshaper_8")
+        return
+    
+    api_url = f"http://{host}:{port}/v1/models/pull"
+    
+    # Prepare request data
+    data = {"source": source}
+    if source == 'huggingface':
+        data['repo_id'] = repo_id
+    else:  # civitai
+        data['url'] = url
+        if name:
+            data['filename'] = name
+    
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(api_url, json=data)
+            response.raise_for_status()
+            result = response.json()
+            
+            console.print(f"[green]✓[/green] {result.get('message', 'Download started')}")
+            console.print("[blue]Note:[/blue] Download is running in background. Use 'gpu-broker model list' to check status.")
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.json().get('detail', str(e))
+        console.print(f"[red]Error:[/red] {error_detail}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 @model.command(name='list')
-def model_list():
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def model_list(host: str, port: int):
     """List available models."""
-    console.print("[yellow]No models found[/yellow]")
+    api_url = f"http://{host}:{port}/v1/models"
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(api_url)
+            response.raise_for_status()
+            data = response.json()
+            
+            models = data.get('models', [])
+            if not models:
+                console.print("[yellow]No models found[/yellow]")
+                console.print("\n[blue]Tip:[/blue] Pull a model with: gpu-broker model pull <repo_id>")
+                return
+            
+            table = Table(title=f"Models ({data.get('count', 0)})")
+            table.add_column("ID", style="cyan")
+            table.add_column("Name", style="green")
+            table.add_column("Source", style="blue")
+            table.add_column("Format", style="magenta")
+            table.add_column("Size", style="yellow")
+            
+            for model in models:
+                size_mb = model['size_bytes'] / (1024 * 1024)
+                table.add_row(
+                    model['id'],
+                    model['name'],
+                    model['source'],
+                    model['format'],
+                    f"{size_mb:.1f} MB"
+                )
+            
+            console.print(table)
+            
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 @model.command(name='rm')
 @click.argument('model_id')
-def model_rm(model_id: str):
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=DEFAULT_PORT, help='Server port')
+def model_rm(model_id: str, host: str, port: int):
     """Remove a model."""
-    console.print(f"[yellow]Not implemented yet[/yellow]: remove {model_id}")
+    api_url = f"http://{host}:{port}/v1/models/{model_id}"
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.delete(api_url)
+            
+            if response.status_code == 404:
+                console.print(f"[red]Error:[/red] Model '{model_id}' not found")
+                console.print("\n[blue]Tip:[/blue] List models with: gpu-broker model list")
+                return
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            console.print(f"[green]✓[/green] Model '{model_id}' deleted successfully")
+            
+    except httpx.ConnectError:
+        console.print(f"[red]Error:[/red] Cannot connect to {api_url}")
+        console.print("[yellow]Is the server running? Try: gpu-broker serve[/yellow]")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 404:
+            error_detail = e.response.json().get('detail', str(e))
+            console.print(f"[red]Error:[/red] {error_detail}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
 
 
 # Alias for model list

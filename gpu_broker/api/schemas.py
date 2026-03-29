@@ -1,6 +1,5 @@
 """Pydantic schemas for API request/response models."""
-from typing import Optional, Any
-from datetime import datetime
+from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field
 
 
@@ -14,49 +13,67 @@ class ModelInfo(BaseModel):
     """Model information."""
     id: str
     name: str
-    type: str
-    repo_id: str
-    local_path: Optional[str] = None
-    status: str
-    size_bytes: Optional[int] = None
-    metadata: Optional[dict[str, Any]] = None
-    created_at: datetime
-    updated_at: datetime
+    source: Literal['huggingface', 'civitai', 'local']
+    source_url: Optional[str] = None
+    path: str
+    format: Literal['diffusers', 'safetensors']
+    size_bytes: int = 0
+    type: Literal['checkpoint'] = 'checkpoint'
+    trigger_words: Optional[str] = None
+    pulled_at: str
+    loaded: bool = False  # Runtime status, not from DB
 
 
 class ModelListResponse(BaseModel):
     """Response model for model list."""
     models: list[ModelInfo] = Field(default_factory=list)
-    total: int = 0
+    count: int = 0
+
+
+class ModelPullRequest(BaseModel):
+    """Request model for pulling a model."""
+    source: Literal['huggingface', 'civitai']
+    repo_id: Optional[str] = None  # For HuggingFace
+    url: Optional[str] = None      # For Civitai
+    filename: Optional[str] = None # For Civitai
+
+
+class Txt2ImgParams(BaseModel):
+    """Text-to-image generation parameters."""
+    prompt: str
+    negative_prompt: Optional[str] = ""
+    width: int = 512
+    height: int = 512
+    steps: int = 20
+    cfg_scale: float = 7.0
+    seed: Optional[int] = None
+
+
+class TaskSubmitRequest(BaseModel):
+    """Request model for task submission."""
+    type: Literal['txt2img'] = 'txt2img'
+    model_id: str
+    params: Txt2ImgParams
 
 
 class TaskInfo(BaseModel):
     """Task information."""
     id: str
+    type: Literal['txt2img']
     model_id: str
-    type: str
-    status: str
-    priority: int = 0
-    params: dict[str, Any]
-    result: Optional[dict[str, Any]] = None
+    params: str  # JSON string from DB
+    status: Literal['pending', 'running', 'completed', 'failed', 'cancelled']
+    result_path: Optional[str] = None
     error: Optional[str] = None
-    created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
 
 
 class TaskListResponse(BaseModel):
     """Response model for task list."""
     tasks: list[TaskInfo] = Field(default_factory=list)
-    total: int = 0
-
-
-class TaskSubmitRequest(BaseModel):
-    """Request model for task submission."""
-    model_id: str
-    type: str
-    params: dict[str, Any]
-    priority: int = 0
+    count: int = 0
 
 
 class TaskSubmitResponse(BaseModel):
