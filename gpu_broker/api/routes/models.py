@@ -2,7 +2,8 @@
 import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from gpu_broker.api.schemas import (
-    ModelListResponse, ModelInfo, ModelDownloadRequest, ModelPullRequest
+    ModelListResponse, ModelInfo, ModelDownloadRequest, ModelPullRequest,
+    ModelAddRequest,
 )
 from gpu_broker.config import DB_PATH, MODELS_DIR
 from gpu_broker.models.manager import ModelManager
@@ -73,6 +74,35 @@ async def download_model(request: ModelDownloadRequest, background_tasks: Backgr
         "status": "accepted",
         "message": f"Download started from {request.url}",
     }
+
+
+# ── Register local model ─────────────────────────────────────────
+
+@router.post("/add", status_code=201)
+async def add_local_model(request: ModelAddRequest):
+    """Register a local model file or directory.
+
+    Supports .safetensors, .ckpt files and diffusers directories.
+    Default strategy is symlink.
+    """
+    try:
+        result = model_manager.add_local(
+            path=request.path,
+            name=request.name,
+            lookup=request.lookup,
+            strategy=request.strategy,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        msg = str(e)
+        status = 409 if "already registered" in msg.lower() else 400
+        raise HTTPException(status_code=status, detail=msg)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Legacy endpoint: pull (kept for backward compatibility) ───────────

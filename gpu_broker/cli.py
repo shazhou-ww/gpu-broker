@@ -18,6 +18,8 @@ from gpu_broker.config import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     DATA_DIR,
+    DB_PATH,
+    MODELS_DIR,
     LOG_LEVEL,
     load_config,
     set_config,
@@ -332,6 +334,68 @@ def model_info(model_id: str, host: str, port: int):
             sys.exit(EXIT_MODEL_NOT_FOUND)
         detail = e.response.json().get("detail", str(e))
         output_error(detail)
+        sys.exit(EXIT_ERROR)
+    except Exception as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+
+
+@model.command(name="add")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--name", default=None, help="Custom model name")
+@click.option("--lookup", is_flag=True, help="Lookup model info from Civitai by hash")
+@click.option("--copy", "strategy", flag_value="copy", help="Copy to models directory")
+@click.option("--move", "strategy", flag_value="move", help="Move to models directory")
+def model_add(path, name, lookup, strategy):
+    """Register a local model file or directory.
+
+    \b
+    Supports:
+      - .safetensors / .ckpt files
+      - Diffusers directories (with model_index.json)
+
+    \b
+    File strategy (default: symlink):
+      --copy   Copy file/directory to models directory
+      --move   Move file/directory to models directory
+
+    \b
+    Examples:
+      gpu-broker model add /path/to/model.safetensors
+      gpu-broker model add /path/to/model.safetensors --name "my-model"
+      gpu-broker model add /path/to/model.safetensors --lookup
+      gpu-broker model add /path/to/model.safetensors --copy
+    """
+    from gpu_broker.models.manager import ModelManager
+
+    if strategy is None:
+        strategy = "symlink"
+
+    manager = ModelManager(DB_PATH, MODELS_DIR)
+
+    try:
+        result = manager.add_local(
+            path=path,
+            name=name,
+            lookup=lookup,
+            strategy=strategy,
+        )
+        output_json(result)
+    except FileNotFoundError as e:
+        output_error(str(e), code="path_not_found")
+        sys.exit(EXIT_ERROR)
+    except ValueError as e:
+        msg = str(e)
+        if "already registered" in msg.lower():
+            output_error(msg, code="already_registered")
+        else:
+            output_error(msg, code="invalid_format")
+        sys.exit(EXIT_ERROR)
+    except OSError as e:
+        output_error(str(e), code="file_operation_failed")
+        sys.exit(EXIT_ERROR)
+    except RuntimeError as e:
+        output_error(str(e), code="sha256_failed")
         sys.exit(EXIT_ERROR)
     except Exception as e:
         output_error(str(e))

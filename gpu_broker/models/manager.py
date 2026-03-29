@@ -1,6 +1,7 @@
 """Model manager for downloading and managing ML models."""
 import hashlib
 import logging
+import shutil
 import sqlite3
 import uuid
 from pathlib import Path
@@ -348,6 +349,165 @@ class ModelManager:
                 local_path.unlink()
             raise RuntimeError(f"Download failed: {e}")
     
+    # ── Local model registration ─────────────────────────────────────
+
+    def add_local(self, path: str, name: Optional[str] = None,
+                  lookup: bool = False, strategy: str = 'symlink') -> dict:
+        """Register a local model file/directory.
+
+        Args:
+            path: Path to model file (.safetensors/.ckpt) or directory (diffusers format)
+            name: Custom name, auto-detect if None
+            lookup: Whether to lookup metadata from Civitai by hash
+            strategy: 'symlink' (default), 'copy', or 'move'
+
+        Returns:
+            dict with model info including short_id
+
+        Raises:
+            FileNotFoundError: path doesn't exist
+            ValueError: unrecognized format or model already registered
+        """
+        resolved = Path(path).resolve()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Path does not exist: {path}")
+
+        # Determine format
+        if resolved.is_dir():
+            if not (resolved / 'model_index.json').exists():
+                raise ValueError(
+                    f"Unrecognized model format: directory '{resolved}' "
+                    "has no model_index.json (expected diffusers format)"
+                )
+            model_format = 'diffusers'
+        elif resolved.is_file():
+            ext = resolved.suffix.lower()
+            if ext not in ('.safetensors', '.ckpt'):
+                raise ValueError(
+                    f"Unrecognized model format: '{resolved.name}'. "
+                    "Supported extensions: .safetensors, .ckpt"
+                )
+            model_format = 'safetensors'
+        else:
+            raise ValueError(f"Unrecognized model format: {resolved}")
+
+        # Compute SHA256
+        try:
+            full_hash = self._compute_sha256(resolved)
+        except Exception as e:
+            raise RuntimeError(f"Failed to compute SHA256: {e}")
+
+        short_id = self._short_id(full_hash)
+
+        # Check if already registered
+        with self._get_db() as conn:
+            cursor = conn.execute(
+                "SELECT id FROM models WHERE sha256 = ?", (full_hash,)
+            )
+            existing = cursor.fetchone()
+            if existing:
+                raise ValueError(
+                    f"Model already registered as {existing['id']} "
+                    f"(sha256={full_hash[:12]}...)"
+                )
+
+        # Determine name
+        if name is None:
+            if resolved.is_dir():
+                name = resolved.name
+            else:
+                name = resolved.stem  # filename without extension
+
+        # Civitai lookup (only for single files)
+        source = 'local'
+        source_url = None
+        trigger_words = None
+        if lookup and resolved.is_file():
+            civitai_info = self._lookup_civitai(full_hash)
+            if civitai_info:
+                source = 'civitai'
+                source_url = civitai_info.get('source_url')
+                trigger_words = civitai_info.get('trigger_words')
+                if not name or name == resolved.stem:
+                    # Use Civitai name if user didn't specify one
+                    civitai_name = civitai_info.get('name')
+                    if civitai_name:
+                        name = civitai_name
+
+        # Execute file strategy
+        if resolved.is_dir():
+            target_name = short_id
+        else:
+            target_name = short_id + resolved.suffix
+        target_path = self.models_dir / target_name
+
+        try:
+            if strategy == 'symlink':
+                os.symlink(resolved, target_path)
+            elif strategy == 'copy':
+                if resolved.is_dir():
+                    shutil.copytree(resolved, target_path)
+                else:
+                    shutil.copy2(resolved, target_path)
+            elif strategy == 'move':
+                shutil.move(str(resolved), str(target_path))
+            else:
+                raise ValueError(f"Unknown strategy: {strategy}")
+        except OSError as e:
+            raise OSError(
+                f"Failed to {strategy} '{resolved}' → '{target_path}': {e}"
+            )
+
+        size_bytes = self._calculate_size(
+            target_path if strategy != 'symlink' else resolved
+        )
+
+        model_info = {
+            'id': short_id,
+            'sha256': full_hash,
+            'name': name,
+            'source': source,
+            'source_url': source_url,
+            'path': str(target_path),
+            'format': model_format,
+            'size_bytes': size_bytes,
+            'type': 'checkpoint',
+            'trigger_words': trigger_words,
+            'pulled_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+        }
+
+        self._upsert_model(model_info)
+
+        logger.info(
+            f"Registered local model '{name}' id={short_id} "
+            f"strategy={strategy} format={model_format}"
+        )
+        return model_info
+
+    def _lookup_civitai(self, sha256: str) -> Optional[dict]:
+        """Lookup model info from Civitai by SHA256 hash.
+
+        Returns:
+            dict with 'name', 'source_url', 'trigger_words' if found
+            None if not found or API error
+        """
+        try:
+            resp = requests.get(
+                f"https://civitai.com/api/v1/model-versions/by-hash/{sha256}",
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    'name': data.get('model', {}).get('name', ''),
+                    'source_url': f"https://civitai.com/models/{data.get('modelId', '')}",
+                    'trigger_words': ', '.join(data.get('trainedWords', [])),
+                }
+            return None
+        except Exception:
+            return None
+
     # ── DB helpers ────────────────────────────────────────────────────
     
     def _upsert_model(self, model_info: dict) -> None:

@@ -69,6 +69,14 @@ class ModelPullRequest(BaseModel):
     filename: Optional[str] = None # For Civitai
 
 
+class ModelAddRequest(BaseModel):
+    """Request model for registering a local model."""
+    path: str
+    name: Optional[str] = None
+    lookup: bool = False
+    strategy: Literal['symlink', 'copy', 'move'] = 'symlink'
+
+
 class Txt2ImgParams(BaseModel):
     """Text-to-image generation parameters."""
     prompt: str
