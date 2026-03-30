@@ -1,0 +1,37 @@
+name: 动漫插画
+description: 高质量动漫/二次元插画风格，使用 waiANIPONYXL 模型
+tags:
+  - anime
+  - illustration
+  - 2d
+  - waifu
+author: aobing
+variables:
+  prompt:
+    required: true
+    description: 正向提示词
+  width:
+    default: 1024
+    description: 图片宽度
+  height:
+    default: 1024
+    description: 图片高度
+  seed:
+    default: null
+    description: 随机种子
+template: |
+  {
+    "type": "txt2img",
+    "model": "waiANIPONYXL",
+    "input": {
+      "prompt": prompt & ", anime style, illustration, vibrant colors, detailed, masterpiece, best quality",
+      "negative_prompt": "photorealistic, 3d, low quality, blurry, deformed, bad anatomy, worst quality"
+    },
+    "params": {
+      "width": width,
+      "height": height,
+      "steps": 28,
+      "cfg_scale": 7.0,
+      "seed": seed
+    }
+  }

@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import click
 import httpx
@@ -25,6 +26,9 @@ from gpu_broker.config import (
     set_config,
 )
 from gpu_broker.models.manager import ModelManager
+from gpu_broker.templates.manager import TemplateManager
+
+TEMPLATES_DIR = DATA_DIR / "templates"
 
 # ---------------------------------------------------------------------------
 # Exit codes
@@ -736,6 +740,196 @@ def config_set(key, value):
         output_json({"status": "ok", "key": key, "value": updated[key]})
     except (ValueError, TypeError) as e:
         output_error(f"Invalid value for '{key}': {e}")
+        sys.exit(EXIT_ERROR)
+    except Exception as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+
+
+# ============================= template ===================================
+
+@cli.group()
+def template():
+    """Template management commands."""
+    pass
+
+
+@template.command(name="list")
+@click.option("--tag", default=None, help="Filter by tag")
+@click.option("--search", default=None, help="Search in name/description")
+def template_list(tag, search):
+    """List available templates."""
+    mgr = TemplateManager(TEMPLATES_DIR)
+    templates = mgr.list(tag=tag, search=search)
+    output_json(templates)
+
+
+@template.command(name="show")
+@click.argument("name")
+def template_show(name):
+    """Show template details."""
+    mgr = TemplateManager(TEMPLATES_DIR)
+    tmpl = mgr.get(name)
+    if not tmpl:
+        output_error(f"Template '{name}' not found", code="template_not_found")
+        sys.exit(EXIT_ERROR)
+    output_json(tmpl)
+
+
+@template.command(name="create")
+@click.argument("name")
+@click.option("--file", "file_path", type=click.Path(exists=True), help="YAML file path")
+@click.option("--stdin", "use_stdin", is_flag=True, help="Read YAML from stdin")
+def template_create(name, file_path, use_stdin):
+    """Create or update a template."""
+    if file_path:
+        content = Path(file_path).read_text()
+    elif use_stdin:
+        content = sys.stdin.read()
+    else:
+        output_error("Specify --file or --stdin")
+        sys.exit(EXIT_ERROR)
+    mgr = TemplateManager(TEMPLATES_DIR)
+    result = mgr.create(name, content)
+    output_json(result)
+
+
+@template.command(name="delete")
+@click.argument("name")
+def template_delete(name):
+    """Delete a template."""
+    mgr = TemplateManager(TEMPLATES_DIR)
+    if not mgr.delete(name):
+        output_error(f"Template '{name}' not found", code="template_not_found")
+        sys.exit(EXIT_ERROR)
+    output_json({"status": "deleted", "name": name})
+
+
+@template.command(name="test")
+@click.argument("name")
+@click.option("--prompt", default=None, help="Prompt variable")
+@click.option("--var", multiple=True, help="Variable as key=value (repeatable)")
+@click.option("--width", default=None, type=int, help="Width override")
+@click.option("--height", default=None, type=int, help="Height override")
+@click.option("--seed", default=None, type=int, help="Seed override")
+def template_test(name, prompt, var, width, height, seed):
+    """Test-render a template (dry run)."""
+    variables = {}
+    if prompt:
+        variables["prompt"] = prompt
+    if width:
+        variables["width"] = width
+    if height:
+        variables["height"] = height
+    if seed is not None:
+        variables["seed"] = seed
+    for v in var:
+        k, _, val = v.partition("=")
+        variables[k] = val
+
+    mgr = TemplateManager(TEMPLATES_DIR)
+    is_valid, missing = mgr.validate(name, variables)
+    if not is_valid:
+        output_error(f"Missing required variables: {', '.join(missing)}", code="missing_variables")
+        sys.exit(EXIT_ERROR)
+
+    result = mgr.render(name, variables)
+    output_json(result)
+
+
+# ============================= run ========================================
+
+@cli.command(name="run")
+@click.argument("template_name")
+@click.option("--prompt", default=None, help="Prompt variable")
+@click.option("--var", multiple=True, help="Variable as key=value (repeatable)")
+@click.option("--width", default=None, type=int)
+@click.option("--height", default=None, type=int)
+@click.option("--seed", default=None, type=int)
+@click.option("--wait", is_flag=True, help="Wait for completion")
+@click.option("--output", "-o", default=None, type=click.Path())
+@click.option("--host", default="localhost")
+@click.option("--port", default=None, type=int)
+def run_template(template_name, prompt, var, width, height, seed, wait, output, host, port):
+    """Run a template: render and submit to daemon."""
+    port = port or _load_port_from_config()
+
+    # Build variables
+    variables = {}
+    if prompt:
+        variables["prompt"] = prompt
+    if width:
+        variables["width"] = width
+    if height:
+        variables["height"] = height
+    if seed is not None:
+        variables["seed"] = seed
+    for v in var:
+        k, _, val = v.partition("=")
+        variables[k] = val
+
+    mgr = TemplateManager(TEMPLATES_DIR)
+
+    # Validate
+    is_valid, missing = mgr.validate(template_name, variables)
+    if not is_valid:
+        output_error(f"Missing required variables: {', '.join(missing)}", code="missing_variables")
+        sys.exit(EXIT_ERROR)
+
+    # Render
+    try:
+        task_json = mgr.render(template_name, variables)
+    except ValueError as e:
+        output_error(str(e), code="template_not_found")
+        sys.exit(EXIT_ERROR)
+    except RuntimeError as e:
+        output_error(str(e), code="render_error")
+        sys.exit(EXIT_ERROR)
+
+    # Submit to daemon
+    api_url = f"{_daemon_url(host, port)}/v1/tasks"
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(api_url, json=task_json)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result.get("task_id")
+
+            if not wait:
+                output_json(result)
+                return
+
+            status_url = f"{api_url}/{task_id}"
+            while True:
+                time.sleep(2)
+                status_resp = client.get(status_url)
+                status_resp.raise_for_status()
+                task_info = status_resp.json()
+                st = task_info.get("status")
+                if st in ("completed", "failed", "cancelled"):
+                    if st == "completed" and output:
+                        try:
+                            img_resp = client.get(f"{api_url}/{task_id}/image", timeout=60.0)
+                            img_resp.raise_for_status()
+                            out_path = Path(output)
+                            out_path.parent.mkdir(parents=True, exist_ok=True)
+                            out_path.write_bytes(img_resp.content)
+                            task_info["output_path"] = str(out_path.resolve())
+                        except Exception as e:
+                            task_info["output_error"] = str(e)
+                    output_json(task_info)
+                    if st == "failed":
+                        sys.exit(EXIT_ERROR)
+                    return
+    except httpx.ConnectError:
+        output_error("Daemon not running. Start with: gpu-broker daemon start", code="daemon_not_running")
+        sys.exit(EXIT_DAEMON_NOT_RUNNING)
+    except httpx.HTTPStatusError as e:
+        try:
+            detail = e.response.json().get("detail", str(e))
+        except Exception:
+            detail = str(e)
+        output_error(detail)
         sys.exit(EXIT_ERROR)
     except Exception as e:
         output_error(str(e))

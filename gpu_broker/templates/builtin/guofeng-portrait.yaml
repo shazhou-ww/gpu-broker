@@ -1,0 +1,38 @@
+name: 国风人像
+description: 古风汉服美女，水墨意境，使用容华模型
+tags:
+  - guofeng
+  - chinese
+  - hanfu
+  - portrait
+  - woman
+author: aobing
+variables:
+  prompt:
+    required: true
+    description: 正向提示词
+  width:
+    default: 1024
+    description: 图片宽度
+  height:
+    default: 1024
+    description: 图片高度
+  seed:
+    default: null
+    description: 随机种子
+template: |
+  {
+    "type": "txt2img",
+    "model": "SDXLRonghua_v45",
+    "input": {
+      "prompt": prompt & ", guofeng, ink painting, hanfu, masterpiece, best quality, ultra detailed",
+      "negative_prompt": "low quality, blurry, deformed, ugly, bad anatomy, bad hands"
+    },
+    "params": {
+      "width": width,
+      "height": height,
+      "steps": 25,
+      "cfg_scale": 3.5,
+      "seed": seed
+    }
+  }

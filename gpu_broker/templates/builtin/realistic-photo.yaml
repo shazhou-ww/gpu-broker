@@ -1,0 +1,36 @@
+name: 写实摄影
+description: 高质量写实摄影风格，使用 DreamShaper XL 模型
+tags:
+  - realistic
+  - photo
+  - photography
+author: aobing
+variables:
+  prompt:
+    required: true
+    description: 正向提示词
+  width:
+    default: 1024
+    description: 图片宽度
+  height:
+    default: 1024
+    description: 图片高度
+  seed:
+    default: null
+    description: 随机种子
+template: |
+  {
+    "type": "txt2img",
+    "model": "dreamshaperXL",
+    "input": {
+      "prompt": prompt & ", photorealistic, 8k uhd, high quality photography, natural lighting, sharp focus",
+      "negative_prompt": "cartoon, anime, illustration, painting, drawing, low quality, blurry, deformed"
+    },
+    "params": {
+      "width": width,
+      "height": height,
+      "steps": 30,
+      "cfg_scale": 7.0,
+      "seed": seed
+    }
+  }
