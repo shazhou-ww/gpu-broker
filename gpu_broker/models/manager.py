@@ -1,8 +1,10 @@
 """Model manager for downloading and managing ML models."""
 import hashlib
+import json
 import logging
 import shutil
 import sqlite3
+import time
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -599,34 +601,236 @@ class ModelManager:
         if 'sha256' not in d:
             d['sha256'] = d.get('id', '')
         d['loaded'] = False  # Runtime status
+
+        # Deserialize tags: JSON string → list
+        raw_tags = d.get('tags', '') or ''
+        try:
+            d['tags'] = json.loads(raw_tags) if raw_tags else []
+        except Exception:
+            d['tags'] = [t.strip() for t in raw_tags.split(',') if t.strip()] if raw_tags else []
+
+        # Deserialize trigger_words: JSON string or comma-separated → list
+        raw_tw = d.get('trigger_words', '') or ''
+        try:
+            parsed = json.loads(raw_tw) if raw_tw else []
+            d['trigger_words'] = parsed if isinstance(parsed, list) else [parsed]
+        except Exception:
+            d['trigger_words'] = [t.strip() for t in raw_tw.split(',') if t.strip()] if raw_tw else []
+
+        # nsfw: int → bool
+        d['nsfw'] = bool(d.get('nsfw', 0))
+
+        # Defaults for new fields if missing (old rows without migration)
+        d.setdefault('description', '')
+        d.setdefault('base_model', '')
+        d.setdefault('recommended_cfg', 7.0)
+        d.setdefault('recommended_steps', 20)
+        d.setdefault('civitai_id', 0)
+
         return d
     
     # ── List / Get / Delete ───────────────────────────────────────────
     
-    def list(self, model_type: Optional[str] = None) -> list[dict]:
+    def list(self, model_type: Optional[str] = None, tag: Optional[str] = None,
+             base_model: Optional[str] = None, nsfw: Optional[bool] = None,
+             search: Optional[str] = None) -> list[dict]:
         """List all downloaded models.
-        
+
         Args:
             model_type: Filter by type ('checkpoint' or 'lora'). None for all.
+            tag: Comma-separated tags; each tag must match (AND logic).
+            base_model: Filter by base model name.
+            nsfw: True → only NSFW, False → only SFW, None → all.
+            search: Search in name, description, and tags.
         """
+        conditions = []
+        params = []
+
+        if model_type:
+            conditions.append('type = ?')
+            params.append(model_type)
+
+        if tag:
+            for t in [t.strip() for t in tag.split(',') if t.strip()]:
+                conditions.append("tags LIKE ?")
+                params.append(f'%{t}%')
+
+        if base_model is not None:
+            conditions.append('base_model = ?')
+            params.append(base_model)
+
+        if nsfw is True:
+            conditions.append('nsfw = 1')
+        elif nsfw is False:
+            conditions.append('nsfw = 0')
+
+        if search:
+            conditions.append(
+                "(name LIKE ? OR description LIKE ? OR tags LIKE ?)"
+            )
+            q = f'%{search}%'
+            params.extend([q, q, q])
+
+        where_clause = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
         with self._get_db() as conn:
-            if model_type:
-                cursor = conn.execute("""
-                    SELECT id, sha256, name, source, source_url, path, format,
-                           size_bytes, type, trigger_words, pulled_at
-                    FROM models
-                    WHERE type = ?
-                    ORDER BY pulled_at DESC
-                """, (model_type,))
-            else:
-                cursor = conn.execute("""
-                    SELECT id, sha256, name, source, source_url, path, format,
-                           size_bytes, type, trigger_words, pulled_at
-                    FROM models
-                    ORDER BY pulled_at DESC
-                """)
+            cursor = conn.execute(f"""
+                SELECT *
+                FROM models
+                {where_clause}
+                ORDER BY pulled_at DESC
+            """, params)
             return [self._row_to_dict(row) for row in cursor.fetchall()]
     
+    def enrich(self, cminfo_dir: str = '/mnt/e/ComfyUI/models/checkpoints',
+               use_civitai: bool = False) -> dict:
+        """Enrich model metadata from .cminfo.json files and optionally Civitai API.
+
+        Args:
+            cminfo_dir: Directory containing *.cminfo.json files.
+            use_civitai: If True, query Civitai API for models without civitai_id.
+
+        Returns:
+            dict with keys: updated, skipped, not_found
+        """
+        stats = {'updated': 0, 'skipped': 0, 'not_found': 0}
+        cminfo_path = Path(cminfo_dir)
+
+        # ── Phase 1: scan .cminfo.json files ──────────────────────────────
+        if cminfo_path.is_dir():
+            for cminfo_file in cminfo_path.glob('*.cminfo.json'):
+                try:
+                    with open(cminfo_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                except Exception as e:
+                    logger.warning(f"Failed to read {cminfo_file}: {e}")
+                    stats['skipped'] += 1
+                    continue
+
+                # Extract SHA256 from Hashes.SHA256 (may be uppercase)
+                sha256 = (data.get('Hashes', {}) or {}).get('SHA256', '')
+                if not sha256:
+                    stats['skipped'] += 1
+                    continue
+                sha256 = sha256.lower()
+
+                # Find matching model in DB
+                with self._get_db() as conn:
+                    cursor = conn.execute(
+                        'SELECT id FROM models WHERE sha256 = ?', (sha256,)
+                    )
+                    row = cursor.fetchone()
+
+                if not row:
+                    logger.debug(f"No model found for sha256={sha256[:12]} ({cminfo_file.name})")
+                    stats['not_found'] += 1
+                    continue
+
+                model_id = row['id']
+
+                # Build update fields
+                description = data.get('ModelName', '') or ''
+                tags_list = data.get('Tags', []) or []
+                base_model = data.get('BaseModel', '') or ''
+                nsfw_val = 1 if data.get('Nsfw', False) else 0
+                civitai_id = data.get('ModelId', 0) or 0
+                trained_words = data.get('TrainedWords', []) or []
+
+                with self._get_db() as conn:
+                    conn.execute("""
+                        UPDATE models
+                        SET description = ?,
+                            tags = ?,
+                            base_model = ?,
+                            nsfw = ?,
+                            civitai_id = ?,
+                            trigger_words = ?,
+                            updated_at = ?
+                        WHERE id = ?
+                    """, (
+                        description,
+                        json.dumps(tags_list),
+                        base_model,
+                        nsfw_val,
+                        civitai_id,
+                        json.dumps(trained_words),
+                        datetime.now().isoformat(),
+                        model_id,
+                    ))
+                    conn.commit()
+
+                logger.info(f"Enriched model {model_id} from {cminfo_file.name}")
+                stats['updated'] += 1
+
+        # ── Phase 2: Civitai API for unmatched models ─────────────────────
+        if use_civitai:
+            civitai_token = os.environ.get('CIVITAI_API_TOKEN', '')
+            headers = {}
+            if civitai_token:
+                headers['Authorization'] = f'Bearer {civitai_token}'
+
+            with self._get_db() as conn:
+                cursor = conn.execute(
+                    "SELECT id, sha256 FROM models WHERE civitai_id = 0 AND length(sha256) > 12"
+                )
+                candidates = cursor.fetchall()
+
+            for row in candidates:
+                model_id = row['id']
+                sha256 = row['sha256']
+                try:
+                    resp = requests.get(
+                        f'https://civitai.com/api/v1/model-versions/by-hash/{sha256}',
+                        headers=headers,
+                        timeout=10,
+                    )
+                    if resp.status_code != 200:
+                        stats['skipped'] += 1
+                        time.sleep(0.5)
+                        continue
+
+                    cv = resp.json()
+                    description = (cv.get('model', {}) or {}).get('name', '') or ''
+                    tags_list = (cv.get('model', {}) or {}).get('tags', []) or []
+                    base_model = cv.get('baseModel', '') or ''
+                    nsfw_val = 1 if (cv.get('model', {}) or {}).get('nsfw', False) else 0
+                    civitai_id = cv.get('modelId', 0) or 0
+                    trained_words = cv.get('trainedWords', []) or []
+
+                    with self._get_db() as conn:
+                        conn.execute("""
+                            UPDATE models
+                            SET description = ?,
+                                tags = ?,
+                                base_model = ?,
+                                nsfw = ?,
+                                civitai_id = ?,
+                                trigger_words = ?,
+                                updated_at = ?
+                            WHERE id = ?
+                        """, (
+                            description,
+                            json.dumps(tags_list),
+                            base_model,
+                            nsfw_val,
+                            civitai_id,
+                            json.dumps(trained_words),
+                            datetime.now().isoformat(),
+                            model_id,
+                        ))
+                        conn.commit()
+
+                    logger.info(f"Enriched model {model_id} from Civitai (civitai_id={civitai_id})")
+                    stats['updated'] += 1
+
+                except Exception as e:
+                    logger.warning(f"Civitai lookup failed for {model_id}: {e}")
+                    stats['skipped'] += 1
+
+                time.sleep(0.5)
+
+        return stats
+
     def get(self, model_id: str) -> Optional[dict]:
         """Get a single model's information.
         

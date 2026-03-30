@@ -21,3 +21,4 @@ Thumbs.db
 
 # gpu-broker data (local only)
 ~/.gpu-broker/
+migrate.log

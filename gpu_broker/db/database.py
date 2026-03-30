@@ -53,6 +53,23 @@ async def init_db():
             except Exception as idx_err:
                 logger.warning(f"Could not create unique sha256 index: {idx_err}")
         
+        # ── Migration: add metadata columns if missing ──
+        metadata_columns = [
+            ('description', 'TEXT', "''"),
+            ('tags', 'TEXT', "''"),
+            ('base_model', 'TEXT', "''"),
+            ('nsfw', 'INTEGER', '0'),
+            ('recommended_cfg', 'REAL', '7.0'),
+            ('recommended_steps', 'INTEGER', '20'),
+            ('civitai_id', 'INTEGER', '0'),
+        ]
+        for col_name, col_type, default in metadata_columns:
+            try:
+                await db.execute(f'ALTER TABLE models ADD COLUMN {col_name} {col_type} DEFAULT {default}')
+                logger.info(f'Migrating models table: added {col_name} column')
+            except Exception:
+                pass
+
         # Create tasks table
         await db.execute("""
             CREATE TABLE IF NOT EXISTS tasks (

@@ -388,13 +388,37 @@ def model_download(url: str, name: str, model_type: str):
 @click.option("--type", "model_type", default=None,
               type=click.Choice(["checkpoint", "lora"]),
               help="Filter by model type")
-def model_list(model_type: str):
+@click.option('--tag', default=None, help='Filter by tag (comma-sep for AND logic)')
+@click.option('--base', 'base_model', default=None, help='Filter by base model name')
+@click.option('--nsfw', 'nsfw_flag', is_flag=True, default=False, help='Only NSFW models')
+@click.option('--sfw', 'sfw_flag', is_flag=True, default=False, help='Only SFW models')
+@click.option('--search', default=None, help='Search in name/description/tags')
+def model_list(model_type: str, tag: str, base_model: str, nsfw_flag: bool,
+               sfw_flag: bool, search: str):
     """List available models."""
     manager = ModelManager(DB_PATH, MODELS_DIR)
 
+    nsfw_val = True if nsfw_flag else (False if sfw_flag else None)
+
     try:
-        models = manager.list(model_type=model_type)
+        models = manager.list(model_type=model_type, tag=tag, base_model=base_model,
+                              nsfw=nsfw_val, search=search)
         output_json({"models": models, "count": len(models)})
+    except Exception as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+
+
+@model.command(name="enrich")
+@click.option('--civitai', is_flag=True, help='Fetch from Civitai API for unmatched')
+@click.option('--dir', 'cminfo_dir', default='/mnt/e/ComfyUI/models/checkpoints',
+              help='Directory containing .cminfo.json files')
+def model_enrich(civitai: bool, cminfo_dir: str):
+    """Enrich model metadata from .cminfo.json files (and optionally Civitai API)."""
+    manager = ModelManager(DB_PATH, MODELS_DIR)
+    try:
+        result = manager.enrich(cminfo_dir=cminfo_dir, use_civitai=civitai)
+        output_json(result)
     except Exception as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
