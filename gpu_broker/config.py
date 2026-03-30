@@ -10,18 +10,37 @@ LOG_LEVEL = os.getenv("GPU_BROKER_LOG_LEVEL", "INFO")
 
 # Data directories
 DATA_DIR = Path(os.getenv("GPU_BROKER_DATA_DIR", Path.home() / ".gpu-broker"))
-MODELS_DIR = DATA_DIR / "models"
-OUTPUTS_DIR = DATA_DIR / "outputs"
 DB_PATH = DATA_DIR / "gpu-broker.db"
 CONFIG_FILE = Path.home() / ".config" / "gpu-broker" / "config.json"
 
+# Models/outputs dirs: config file > env var > default
+# We read config early to resolve models_dir before module-level mkdir
+def _read_config_file() -> dict:
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE) as f:
+            return json.load(f)
+    return {}
+
+_file_cfg = _read_config_file()
+
+MODELS_DIR = Path(
+    os.getenv("GPU_BROKER_MODELS_DIR",
+              _file_cfg.get("models_dir", str(DATA_DIR / "models")))
+)
+OUTPUTS_DIR = Path(
+    os.getenv("GPU_BROKER_OUTPUTS_DIR",
+              _file_cfg.get("output_dir", str(DATA_DIR / "outputs")))
+)
+
 # Ensure directories exist
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_CONFIG = {
     "host": DEFAULT_HOST,
     "port": DEFAULT_PORT,
+    "models_dir": str(MODELS_DIR),
     "output_dir": str(OUTPUTS_DIR),
     "default_steps": 20,
     "default_width": 1024,
