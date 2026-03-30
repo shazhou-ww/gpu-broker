@@ -1,0 +1,181 @@
+=== LoRA Migration ===
+Started: Mon Mar 30 01:00:48 CST 2026
+[1/44] Moving LoRA: 0156 bubble bath_v3_pony (82M)...
+2026-03-30 01:00:48,750 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[2/44] Moving LoRA: 0325 printed transparent cheongsam_v1_pony (163M)...
+2026-03-30 01:00:52,506 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[3/44] Moving LoRA: 0765 flower wedding_v1_pony (82M)...
+2026-03-30 01:00:59,321 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[4/44] Moving LoRA: Adorable_tunnel_plug (218M)...
+2026-03-30 01:01:03,228 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[5/44] Moving LoRA: Ahegao_O_face_Orgasming (218M)...
+2026-03-30 01:01:13,684 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[6/44] Moving LoRA: Artificial_Insemination (218M)...
+2026-03-30 01:01:23,817 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[7/44] Moving LoRA: Breast Size Slider - Illustrious - V2_alpha1.0_rank4_noxattn_last (8.4M)...
+2026-03-30 01:01:31,301 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[8/44] Moving LoRA: Expressive_H-000001 (218M)...
+2026-03-30 01:01:32,009 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[9/44] Moving LoRA: FC Flux Perfect Busts (1.2G)...
+2026-03-30 01:01:39,845 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[10/44] Moving LoRA: HPI2_Anime_IL_V1 (218M)...
+2026-03-30 01:02:24,548 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[11/44] Moving LoRA: KinkyToys_Balls_v3_XL (650M)...
+2026-03-30 01:02:31,198 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[12/44] Moving LoRA: MK_kzy_xl_V1.0 (218M)...
+2026-03-30 01:03:04,789 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[13/44] Moving LoRA: Pleasured Orgasm pose - XL - IL v1.0 (436M)...
+2026-03-30 01:03:13,616 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[14/44] Moving LoRA: Pregnancy Slider_alpha1.0_rank4_noxattn_last (8.4M)...
+2026-03-30 01:03:27,883 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[15/44] Moving LoRA: Pussy_Butterfly_v4_XL (650M)...
+2026-03-30 01:03:28,391 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[16/44] Moving LoRA: Pussy_Cameltoe_v3_XL (650M)...
+2026-03-30 01:03:51,372 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[17/44] Moving LoRA: Pussy_Lily_v5_XL (650M)...
+2026-03-30 01:04:13,752 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[18/44] Moving LoRA: Pussy_Lotte_v6_XL_nf (650M)...
+2026-03-30 01:04:37,159 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[19/44] Moving LoRA: Pussy_Peach_Rear_v2_XL (650M)...
+2026-03-30 01:04:58,368 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[20/44] Moving LoRA: Pussy_Spreading_v5i_XL (650M)...
+2026-03-30 01:05:27,682 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[21/44] Moving LoRA: Sextoy_Dildo_Pussy_v2i_XL (650M)...
+2026-03-30 01:06:01,159 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[22/44] Moving LoRA: Sextoy_Dildomachine_v1_XL (650M)...
+2026-03-30 01:06:31,362 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[23/44] Moving LoRA: StS_age_slider_v1_initial_release (42M)...
+2026-03-30 01:07:03,690 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[24/44] Moving LoRA: Vibrator_Egg_ILXL (218M)...
+2026-03-30 01:07:05,608 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[25/44] Moving LoRA: add-detail-xl (218M)...
+2026-03-30 01:07:18,723 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[26/44] Moving LoRA: bandeid_illustrious_V1.0 (122M)...
+2026-03-30 01:07:28,958 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[27/44] Moving LoRA: bathrobe_illustrious_V1.0 (122M)...
+2026-03-30 01:07:33,924 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[28/44] Moving LoRA: defloration_pony_V1.0 (62M)...
+2026-03-30 01:07:40,719 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[29/44] Moving LoRA: detailed_notrigger (12M)...
+2026-03-30 01:07:46,171 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[30/44] Moving LoRA: fatsliderWnegs_alpha16.0_rank32_full_200steps (89M)...
+2026-03-30 01:07:46,778 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[31/44] Moving LoRA: female orgasm-SDXL-V1 (465M)...
+2026-03-30 01:07:51,918 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[32/44] Moving LoRA: gufeng1_PONY (55M)...
+2026-03-30 01:08:11,551 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[33/44] Moving LoRA: hair_slider_v1 (5.3M)...
+2026-03-30 01:08:14,592 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[34/44] Moving LoRA: lbc_pony_wedding dress_126-000006 (110M)...
+2026-03-30 01:08:15,175 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[35/44] Moving LoRA: miko_Pony_V1.0 (122M)...
+2026-03-30 01:08:21,719 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[36/44] Moving LoRA: orgasm_face_pony (55M)...
+2026-03-30 01:08:28,653 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[37/44] Moving LoRA: orgasmface_SDXL (21M)...
+2026-03-30 01:08:31,275 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[38/44] Moving LoRA: orgasmic_heartblast (325M)...
+2026-03-30 01:08:31,988 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[39/44] Moving LoRA: princess_xl_v2 (218M)...
+2026-03-30 01:08:48,280 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[40/44] Moving LoRA: sexy underwear_illustrious_V1.0 (122M)...
+2026-03-30 01:08:59,259 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[41/44] Moving LoRA: toro_ahe_pony (95M)...
+2026-03-30 01:09:05,102 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[42/44] Moving LoRA: towelPony (55M)...
+2026-03-30 01:09:11,147 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[43/44] Moving LoRA: venus_bikini_v0.2-illu_done (55M)...
+2026-03-30 01:09:13,615 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+[44/44] Moving LoRA: womb_tattoo_v6_SDXL (110M)...
+2026-03-30 01:09:16,030 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+{"error": "error", "message": "CHECK constraint failed: type IN ('checkpoint')"}
+  ❌ Failed
+=== LoRA Migration Done ===
+Total: 44 | Success: 0 | Failed: 44
+Finished: Mon Mar 30 01:09:20 CST 2026

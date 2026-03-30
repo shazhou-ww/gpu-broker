@@ -1,0 +1,41 @@
+=== Migration Phase 2 (skip FLUX) ===
+Started: Mon Mar 30 00:30:47 CST 2026
+⏭️ Skipping FLUX model: getphatFLUXReality_v11Softcore
+[1] Moving harukiMIX_IllustriousV401 (6.5G)...
+2026-03-30 00:30:47,548 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:34:04,267 - gpu_broker.models.manager - INFO - Registered local model 'harukiMIX_IllustriousV401' id=be8b15618105 strategy=move format=safetensors type=checkpoint
+{
+  "id": "be8b15618105",
+  "sha256": "be8b15618105dd37e64a4f7c9979a0c45c73add97246d67418dec260c43964ea",
+  "name": "harukiMIX_IllustriousV401",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/be8b15618105.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938041160,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:33:57.591035",
+  "updated_at": "2026-03-30T00:33:57.591049"
+}
+  ✅ Success
+[2] Moving hassakuXLPony_v13BetterEyesVersion (6.5G)...
+2026-03-30 00:34:04,497 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models
+2026-03-30 00:37:19,956 - gpu_broker.models.manager - INFO - Registered local model 'hassakuXLPony_v13BetterEyesVersion' id=bbad3bea966a strategy=move format=safetensors type=checkpoint
+{
+  "id": "bbad3bea966a",
+  "sha256": "bbad3bea966ad9572dd0284470a33e35cd1ee0d2bb3c62a6d9d5110cf5f28c00",
+  "name": "hassakuXLPony_v13BetterEyesVersion",
+  "source": "local",
+  "source_url": null,
+  "path": "/home/lyweiwei/.gpu-broker/models/bbad3bea966a.safetensors",
+  "format": "safetensors",
+  "size_bytes": 6938042770,
+  "type": "checkpoint",
+  "trigger_words": null,
+  "pulled_at": "2026-03-30T00:37:19.945188",
+  "updated_at": "2026-03-30T00:37:19.945301"
+}
+  ✅ Success
+[3] Moving iniverseMixSFWNSFW_realXLV1 (6.5G)...
+2026-03-30 00:37:20,188 - gpu_broker.models.manager - INFO - ModelManager initialized with models_dir=/home/lyweiwei/.gpu-broker/models

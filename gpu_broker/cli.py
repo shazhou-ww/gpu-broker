@@ -1,6 +1,6 @@
 """Command-line interface for GPU Broker.
 
-All output is JSON for easy agent/script parsing.
+Output defaults to YAML for human readability; use --json for JSON output.
 """
 import json
 import logging
@@ -10,6 +10,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+import yaml
 
 import click
 import httpx
@@ -44,9 +46,12 @@ EXIT_VRAM_ERROR = 5
 # Output helpers
 # ---------------------------------------------------------------------------
 
-def output_json(data):
-    """Emit JSON to stdout."""
-    click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+def output_result(data, output_json: bool = False):
+    """Emit data to stdout as YAML (default) or JSON."""
+    if output_json:
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+    else:
+        click.echo(yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False), nl=False)
 
 
 def output_error(message: str, code: str = "error"):
@@ -97,8 +102,12 @@ def _load_port_from_config() -> int:
 
 @click.group()
 @click.version_option(version=__version__)
-def cli():
+@click.option("--json", "output_json", is_flag=True, default=False, help="Output in JSON format")
+@click.pass_context
+def cli(ctx, output_json):
     """GPU Broker – GPU inference task broker."""
+    ctx.ensure_object(dict)
+    ctx.obj["output_json"] = output_json
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -155,6 +164,8 @@ def generate(model, prompt, negative, width, height, steps, cfg, seed,
       gpu-broker generate -m mymodel -p "landscape" --steps 30 --cfg 3.5 --wait
       gpu-broker generate -m mymodel -p "girl" --lora "princess_xl:0.8" --wait -o out.png
     """
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
 
     # Build LoRA list
@@ -190,7 +201,7 @@ def generate(model, prompt, negative, width, height, steps, cfg, seed,
             task_id = result.get("task_id")
 
             if not wait:
-                output_json(result)
+                output_result(result, use_json)
                 return
 
             # Polling loop
@@ -216,7 +227,7 @@ def generate(model, prompt, negative, width, height, steps, cfg, seed,
                         except Exception as e:
                             task_info["output_error"] = str(e)
 
-                    output_json(task_info)
+                    output_result(task_info, use_json)
                     if st == "failed":
                         sys.exit(EXIT_ERROR)
                     return
@@ -253,6 +264,8 @@ def daemon():
 @click.option("--foreground", is_flag=True, help="Run in foreground (for debugging)")
 def daemon_start(host, port, foreground):
     """Start the GPU Broker daemon."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     cfg = load_config()
     host = host or cfg.get("host", DEFAULT_HOST)
     port = port or int(cfg.get("port", DEFAULT_PORT))
@@ -275,7 +288,7 @@ def daemon_start(host, port, foreground):
     if pid_file.exists():
         existing_pid = int(pid_file.read_text().strip())
         if _is_process_running(existing_pid):
-            output_json({"error": "Daemon already running", "pid": existing_pid})
+            output_result({"error": "Daemon already running", "pid": existing_pid}, use_json)
             sys.exit(EXIT_ERROR)
         # Stale PID file – remove
         pid_file.unlink(missing_ok=True)
@@ -303,14 +316,16 @@ def daemon_start(host, port, foreground):
     # before uvicorn's event loop kicks in).
     pid_file.write_text(str(proc.pid))
 
-    output_json(
-        {"status": "started", "pid": proc.pid, "host": host, "port": port}
+    output_result(
+        {"status": "started", "pid": proc.pid, "host": host, "port": port}, use_json
     )
 
 
 @daemon.command(name="stop")
 def daemon_stop():
     """Stop the running daemon."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     pid, pid_file = _read_pid_file()
     if pid is None or not _is_process_running(pid):
         output_error("Daemon not running (no PID file or process dead)")
@@ -320,22 +335,24 @@ def daemon_stop():
 
     os.kill(pid, signal.SIGTERM)
     pid_file.unlink(missing_ok=True)
-    output_json({"status": "stopped", "pid": pid})
+    output_result({"status": "stopped", "pid": pid}, use_json)
 
 
 @daemon.command(name="status")
 def daemon_status():
     """Show daemon status (PID + HTTP health-check)."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     pid, pid_file = _read_pid_file()
     port = _load_port_from_config()
 
     if pid is None:
-        output_json({"status": "stopped"})
+        output_result({"status": "stopped"}, use_json)
         sys.exit(EXIT_DAEMON_NOT_RUNNING)
 
     if not _is_process_running(pid):
-        output_json(
-            {"status": "stopped", "note": "PID file exists but process is dead"}
+        output_result(
+            {"status": "stopped", "note": "PID file exists but process is dead"}, use_json
         )
         pid_file.unlink(missing_ok=True)
         sys.exit(EXIT_DAEMON_NOT_RUNNING)
@@ -345,14 +362,15 @@ def daemon_status():
         resp = httpx.get(f"http://localhost:{port}/v1/status", timeout=3)
         data = resp.json()
         data["pid"] = pid
-        output_json(data)
+        output_result(data, use_json)
     except Exception:
-        output_json(
+        output_result(
             {
                 "status": "starting",
                 "pid": pid,
                 "note": "Process alive but HTTP not responding yet",
-            }
+            },
+            use_json,
         )
 
 
@@ -372,11 +390,13 @@ def model():
               help="Model type (default: checkpoint)")
 def model_download(url: str, name: str, model_type: str):
     """Download a model from a URL (HuggingFace or Civitai auto-detected)."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
         result = manager.download(url, model_type=model_type)
-        output_json(result)
+        output_result(result, use_json)
     except ValueError as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -400,6 +420,8 @@ def model_download(url: str, name: str, model_type: str):
 def model_list(model_type: str, tag: str, base_model: str, nsfw_flag: bool,
                sfw_flag: bool, search: str):
     """List available models."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     manager = ModelManager(DB_PATH, MODELS_DIR)
 
     nsfw_val = True if nsfw_flag else (False if sfw_flag else None)
@@ -407,7 +429,7 @@ def model_list(model_type: str, tag: str, base_model: str, nsfw_flag: bool,
     try:
         models = manager.list(model_type=model_type, tag=tag, base_model=base_model,
                               nsfw=nsfw_val, search=search)
-        output_json({"models": models, "count": len(models)})
+        output_result({"models": models, "count": len(models)}, use_json)
     except Exception as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -419,10 +441,12 @@ def model_list(model_type: str, tag: str, base_model: str, nsfw_flag: bool,
               help='Directory containing .cminfo.json files')
 def model_enrich(civitai: bool, cminfo_dir: str):
     """Enrich model metadata from .cminfo.json files (and optionally Civitai API)."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     manager = ModelManager(DB_PATH, MODELS_DIR)
     try:
         result = manager.enrich(cminfo_dir=cminfo_dir, use_civitai=civitai)
-        output_json(result)
+        output_result(result, use_json)
     except Exception as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -432,6 +456,8 @@ def model_enrich(civitai: bool, cminfo_dir: str):
 @click.argument("model_id")
 def model_remove(model_id: str):
     """Remove a model by ID (supports SHA256 short-ID and name fuzzy match)."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
@@ -439,7 +465,7 @@ def model_remove(model_id: str):
         if not success:
             output_error(f"Model '{model_id}' not found")
             sys.exit(EXIT_MODEL_NOT_FOUND)
-        output_json({"status": "deleted", "model_id": model_id})
+        output_result({"status": "deleted", "model_id": model_id}, use_json)
     except ValueError as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -452,6 +478,8 @@ def model_remove(model_id: str):
 @click.argument("model_id")
 def model_info(model_id: str):
     """Show model details."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     manager = ModelManager(DB_PATH, MODELS_DIR)
 
     try:
@@ -459,7 +487,7 @@ def model_info(model_id: str):
         if not info:
             output_error(f"Model '{model_id}' not found")
             sys.exit(EXIT_MODEL_NOT_FOUND)
-        output_json(info)
+        output_result(info, use_json)
     except ValueError as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
@@ -505,6 +533,9 @@ def model_add(path, name, model_type, lookup, strategy):
     """
     from gpu_broker.models.manager import ModelManager
 
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
+
     if strategy is None:
         strategy = "symlink"
 
@@ -518,7 +549,7 @@ def model_add(path, name, model_type, lookup, strategy):
             strategy=strategy,
             model_type=model_type,
         )
-        output_json(result)
+        output_result(result, use_json)
     except FileNotFoundError as e:
         output_error(str(e), code="path_not_found")
         sys.exit(EXIT_ERROR)
@@ -564,6 +595,8 @@ def task_submit(json_input, wait, host, port):
       echo '{"type":"txt2img",...}' | gpu-broker task submit
       gpu-broker task submit --wait '{"type":"txt2img",...}'
     """
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
 
     # Resolve JSON input
@@ -589,7 +622,7 @@ def task_submit(json_input, wait, host, port):
             task_id = result.get("task_id")
 
             if not wait:
-                output_json(result)
+                output_result(result, use_json)
                 return
 
             # Polling loop
@@ -602,7 +635,7 @@ def task_submit(json_input, wait, host, port):
                 st = task_info.get("status")
 
                 if st in ("completed", "failed", "cancelled"):
-                    output_json(task_info)
+                    output_result(task_info, use_json)
                     if st == "failed":
                         sys.exit(EXIT_ERROR)
                     return
@@ -625,6 +658,8 @@ def task_submit(json_input, wait, host, port):
 @click.option("--port", default=None, type=int, help="Daemon port")
 def task_status(task_id: str, host: str, port: int):
     """Get status of a task."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
     api_url = f"{_daemon_url(host, port)}/v1/tasks/{task_id}"
 
@@ -635,7 +670,7 @@ def task_status(task_id: str, host: str, port: int):
                 output_error(f"Task '{task_id}' not found")
                 sys.exit(EXIT_ERROR)
             response.raise_for_status()
-            output_json(response.json())
+            output_result(response.json(), use_json)
     except httpx.ConnectError:
         output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
         sys.exit(EXIT_DAEMON_NOT_RUNNING)
@@ -652,6 +687,8 @@ def task_status(task_id: str, host: str, port: int):
 @click.option("--port", default=None, type=int, help="Daemon port")
 def task_list(filter_status, model_id, limit, host, port):
     """List tasks with optional filters."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
     api_url = f"{_daemon_url(host, port)}/v1/tasks"
     params = {"limit": limit}
@@ -664,7 +701,7 @@ def task_list(filter_status, model_id, limit, host, port):
         with httpx.Client(timeout=5.0) as client:
             response = client.get(api_url, params=params)
             response.raise_for_status()
-            output_json(response.json())
+            output_result(response.json(), use_json)
     except httpx.ConnectError:
         output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
         sys.exit(EXIT_DAEMON_NOT_RUNNING)
@@ -679,6 +716,8 @@ def task_list(filter_status, model_id, limit, host, port):
 @click.option("--port", default=None, type=int, help="Daemon port")
 def task_cancel(task_id: str, host: str, port: int):
     """Cancel a pending task."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
     api_url = f"{_daemon_url(host, port)}/v1/tasks/{task_id}"
 
@@ -689,7 +728,7 @@ def task_cancel(task_id: str, host: str, port: int):
                 output_error(f"Task '{task_id}' not found or not cancellable")
                 sys.exit(EXIT_ERROR)
             response.raise_for_status()
-            output_json(response.json())
+            output_result(response.json(), use_json)
     except httpx.ConnectError:
         output_error(f"Cannot connect to daemon at {_daemon_url(host, port)}")
         sys.exit(EXIT_DAEMON_NOT_RUNNING)
@@ -713,6 +752,8 @@ def config_group():
 @config_group.command(name="show")
 def config_show():
     """Display current configuration."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     cfg = load_config()
     # Mask sensitive values
     display = dict(cfg)
@@ -720,7 +761,7 @@ def config_show():
         val = display.get(key, "")
         if val:
             display[key] = val[:4] + "****" + val[-4:] if len(val) > 8 else "****"
-    output_json(display)
+    output_result(display, use_json)
 
 
 @config_group.command(name="set")
@@ -735,9 +776,11 @@ def config_set(key, value):
       gpu-broker config set output_dir /data/outputs
       gpu-broker config set hf_token hf_xxx
     """
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     try:
         updated = set_config(key, value)
-        output_json({"status": "ok", "key": key, "value": updated[key]})
+        output_result({"status": "ok", "key": key, "value": updated[key]}, use_json)
     except (ValueError, TypeError) as e:
         output_error(f"Invalid value for '{key}': {e}")
         sys.exit(EXIT_ERROR)
@@ -759,21 +802,25 @@ def template():
 @click.option("--search", default=None, help="Search in name/description")
 def template_list(tag, search):
     """List available templates."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     mgr = TemplateManager(TEMPLATES_DIR)
     templates = mgr.list(tag=tag, search=search)
-    output_json(templates)
+    output_result(templates, use_json)
 
 
 @template.command(name="show")
 @click.argument("name")
 def template_show(name):
     """Show template details."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     mgr = TemplateManager(TEMPLATES_DIR)
     tmpl = mgr.get(name)
     if not tmpl:
         output_error(f"Template '{name}' not found", code="template_not_found")
         sys.exit(EXIT_ERROR)
-    output_json(tmpl)
+    output_result(tmpl, use_json)
 
 
 @template.command(name="create")
@@ -782,6 +829,8 @@ def template_show(name):
 @click.option("--stdin", "use_stdin", is_flag=True, help="Read YAML from stdin")
 def template_create(name, file_path, use_stdin):
     """Create or update a template."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     if file_path:
         content = Path(file_path).read_text()
     elif use_stdin:
@@ -791,18 +840,20 @@ def template_create(name, file_path, use_stdin):
         sys.exit(EXIT_ERROR)
     mgr = TemplateManager(TEMPLATES_DIR)
     result = mgr.create(name, content)
-    output_json(result)
+    output_result(result, use_json)
 
 
 @template.command(name="delete")
 @click.argument("name")
 def template_delete(name):
     """Delete a template."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     mgr = TemplateManager(TEMPLATES_DIR)
     if not mgr.delete(name):
         output_error(f"Template '{name}' not found", code="template_not_found")
         sys.exit(EXIT_ERROR)
-    output_json({"status": "deleted", "name": name})
+    output_result({"status": "deleted", "name": name}, use_json)
 
 
 @template.command(name="test")
@@ -814,6 +865,8 @@ def template_delete(name):
 @click.option("--seed", default=None, type=int, help="Seed override")
 def template_test(name, prompt, var, width, height, seed):
     """Test-render a template (dry run)."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     variables = {}
     if prompt:
         variables["prompt"] = prompt
@@ -834,7 +887,7 @@ def template_test(name, prompt, var, width, height, seed):
         sys.exit(EXIT_ERROR)
 
     result = mgr.render(name, variables)
-    output_json(result)
+    output_result(result, use_json)
 
 
 # ============================= run ========================================
@@ -852,6 +905,8 @@ def template_test(name, prompt, var, width, height, seed):
 @click.option("--port", default=None, type=int)
 def run_template(template_name, prompt, var, width, height, seed, wait, output, host, port):
     """Run a template: render and submit to daemon."""
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
     port = port or _load_port_from_config()
 
     # Build variables
@@ -896,7 +951,7 @@ def run_template(template_name, prompt, var, width, height, seed, wait, output, 
             task_id = result.get("task_id")
 
             if not wait:
-                output_json(result)
+                output_result(result, use_json)
                 return
 
             status_url = f"{api_url}/{task_id}"
@@ -917,7 +972,7 @@ def run_template(template_name, prompt, var, width, height, seed, wait, output, 
                             task_info["output_path"] = str(out_path.resolve())
                         except Exception as e:
                             task_info["output_error"] = str(e)
-                    output_json(task_info)
+                    output_result(task_info, use_json)
                     if st == "failed":
                         sys.exit(EXIT_ERROR)
                     return
