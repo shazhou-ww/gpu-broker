@@ -2,9 +2,11 @@
 
 Output defaults to YAML for human readability; use --json for JSON output.
 """
+import hashlib
 import json
 import logging
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -94,6 +96,39 @@ def _load_port_from_config() -> int:
         return int(cfg.get("port", DEFAULT_PORT))
     except Exception:
         return DEFAULT_PORT
+
+
+def _parse_batch_lora(lora_list):
+    """Parse batch file LoRA entries into API format.
+
+    Supports:
+      - Map: {"add-detail-xl": 0.5}
+      - String: "add-detail-xl:0.5"
+    Returns: [{"model_id": "name", "weight": float}]
+    """
+    result = []
+    for item in lora_list:
+        if isinstance(item, dict):
+            for name, weight in item.items():
+                result.append({"model_id": str(name), "weight": float(weight)})
+        elif isinstance(item, str):
+            if ":" in item:
+                parts = item.rsplit(":", 1)
+                try:
+                    result.append({"model_id": parts[0], "weight": float(parts[1])})
+                except ValueError:
+                    result.append({"model_id": item, "weight": 0.8})
+            else:
+                result.append({"model_id": item, "weight": 0.8})
+    return result
+
+
+def _slugify_prompt(prompt, max_len=30):
+    """Generate a filename-safe slug from a prompt string."""
+    slug = re.sub(r"[^\w\u4e00-\u9fff]+", "_", prompt).strip("_")[:max_len]
+    if not slug:
+        slug = hashlib.md5(prompt.encode()).hexdigest()[:8]
+    return slug + ".png"
 
 
 # ---------------------------------------------------------------------------
@@ -986,6 +1021,254 @@ def run_template(template_name, prompt, var, width, height, seed, wait, output, 
             detail = str(e)
         output_error(detail)
         sys.exit(EXIT_ERROR)
+    except Exception as e:
+        output_error(str(e))
+        sys.exit(EXIT_ERROR)
+
+
+# ============================= batch ======================================
+
+@cli.command(name="batch")
+@click.argument("batch_file", type=click.Path(exists=True))
+@click.option("--wait", is_flag=True, help="Wait for all tasks to complete")
+@click.option("--host", default="localhost", help="Daemon host")
+@click.option("--port", default=None, type=int, help="Daemon port")
+def batch(batch_file, wait, host, port):
+    """Submit batch tasks from a YAML file.
+
+    \b
+    The YAML file can specify model directly or reference a template:
+
+    Direct model:
+      model: SDXLRonghua_v45
+      defaults:
+        steps: 25
+        output_dir: ~/pictures/series
+      tasks:
+        - prompt: 月下汉服少女
+          output: moonlight.png
+
+    Template reference:
+      template: guofeng-portrait
+      defaults:
+        output_dir: ~/pictures/batch
+      tasks:
+        - prompt: 月下汉服少女
+
+    \b
+    Examples:
+      gpu-broker batch my-batch.yaml
+      gpu-broker batch my-batch.yaml --wait
+      gpu-broker --json batch my-batch.yaml --wait
+    """
+    ctx = click.get_current_context()
+    use_json = ctx.obj.get("output_json", False) if ctx.obj else False
+    port = port or _load_port_from_config()
+
+    # Parse batch file
+    with open(batch_file, "r", encoding="utf-8") as f:
+        batch_data = yaml.safe_load(f)
+
+    if not batch_data or "tasks" not in batch_data:
+        output_error("Batch file must contain a tasks list", code="invalid_batch")
+        sys.exit(EXIT_ERROR)
+
+    tasks = batch_data["tasks"]
+    if not tasks:
+        output_error("No tasks in batch file", code="empty_batch")
+        sys.exit(EXIT_ERROR)
+
+    # Resolve model and defaults
+    defaults = batch_data.get("defaults", {})
+    model_name = batch_data.get("model")
+    template_name = batch_data.get("template")
+
+    # If template specified, load it to get model and defaults
+    if template_name:
+        mgr = TemplateManager(TEMPLATES_DIR)
+        tmpl = mgr.get(template_name)
+        if not tmpl:
+            output_error(f"Template {template_name} not found", code="template_not_found")
+            sys.exit(EXIT_ERROR)
+        # Extract model from template if not specified
+        if not model_name:
+            model_name = tmpl.get("model") or tmpl.get("defaults", {}).get("model")
+        # Merge template defaults under batch defaults
+        tmpl_defaults = tmpl.get("defaults", {})
+        merged_defaults = {**tmpl_defaults, **defaults}
+        defaults = merged_defaults
+
+    if not model_name:
+        output_error("No model specified (set model in batch file or template)", code="no_model")
+        sys.exit(EXIT_ERROR)
+
+    # Resolve output_dir
+    output_dir = defaults.pop("output_dir", None)
+    if output_dir:
+        output_dir = os.path.expanduser(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Submit tasks
+    api_url = f"{_daemon_url(host, port)}/v1/tasks"
+    submitted = []  # [(task_id, output_path, prompt)]
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            for i, task_def in enumerate(tasks):
+                prompt = task_def.get("prompt", "")
+                if not prompt:
+                    output_error(f"Task {i+1} missing prompt", code="missing_prompt")
+                    sys.exit(EXIT_ERROR)
+
+                # Merge defaults with task overrides
+                width = task_def.get("width", defaults.get("width", 1024))
+                height = task_def.get("height", defaults.get("height", 1024))
+                steps = task_def.get("steps", defaults.get("steps", 20))
+                cfg = task_def.get("cfg", defaults.get("cfg", 7.0))
+                seed = task_def.get("seed", defaults.get("seed"))
+                negative = task_def.get("negative", defaults.get("negative", ""))
+
+                # Build payload
+                payload = {
+                    "type": "txt2img",
+                    "model": model_name,
+                    "input": {
+                        "prompt": prompt,
+                        "negative_prompt": negative,
+                    },
+                    "params": {
+                        "width": int(width),
+                        "height": int(height),
+                        "steps": int(steps),
+                        "cfg_scale": float(cfg),
+                    },
+                }
+                if seed is not None:
+                    payload["params"]["seed"] = int(seed)
+
+                # LoRA handling
+                lora = task_def.get("lora", defaults.get("lora"))
+                if lora:
+                    payload["params"]["lora"] = _parse_batch_lora(lora)
+
+                # Determine output path
+                task_output = task_def.get("output")
+                output_path = None
+                if output_dir:
+                    if task_output:
+                        output_path = os.path.join(output_dir, task_output)
+                    else:
+                        output_path = os.path.join(output_dir, _slugify_prompt(prompt))
+                elif task_output:
+                    output_path = os.path.expanduser(task_output)
+
+                # Submit
+                try:
+                    response = client.post(api_url, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+                    task_id = result.get("task_id")
+                    submitted.append({
+                        "task_id": task_id,
+                        "prompt": prompt[:50],
+                        "output_path": output_path,
+                        "status": "submitted",
+                    })
+                except httpx.HTTPStatusError as e:
+                    try:
+                        detail = e.response.json().get("detail", str(e))
+                    except Exception:
+                        detail = str(e)
+                    submitted.append({
+                        "task_id": None,
+                        "prompt": prompt[:50],
+                        "output_path": output_path,
+                        "status": "submit_failed",
+                        "error": detail,
+                    })
+
+            if not wait:
+                # Just output submission results
+                summary = {
+                    "submitted": sum(1 for s in submitted if s["status"] == "submitted"),
+                    "failed": sum(1 for s in submitted if s["status"] == "submit_failed"),
+                    "total": len(submitted),
+                    "results": submitted,
+                }
+                output_result(summary, use_json)
+                return
+
+            # Wait mode: poll all tasks until done
+            pending = {s["task_id"]: s for s in submitted if s["task_id"]}
+
+            while pending:
+                time.sleep(2)
+                done_ids = []
+                for task_id, info in pending.items():
+                    try:
+                        resp = client.get(f"{api_url}/{task_id}")
+                        resp.raise_for_status()
+                        task_data = resp.json()
+                        st = task_data.get("status")
+                        if st in ("completed", "failed", "cancelled"):
+                            info["status"] = st
+
+                            # Download image if completed and output_path set
+                            if st == "completed" and info["output_path"]:
+                                try:
+                                    img_resp = client.get(f"{api_url}/{task_id}/image", timeout=60.0)
+                                    img_resp.raise_for_status()
+                                    out_path = Path(info["output_path"])
+                                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                                    out_path.write_bytes(img_resp.content)
+                                    info["output"] = str(out_path)
+                                except Exception as e:
+                                    info["output_error"] = str(e)
+
+                            done_ids.append(task_id)
+                    except Exception:
+                        pass  # Retry on next poll
+
+                for tid in done_ids:
+                    del pending[tid]
+
+            # Build final summary
+            completed = sum(1 for s in submitted if s.get("status") == "completed")
+            failed = sum(1 for s in submitted if s.get("status") in ("failed", "submit_failed"))
+
+            # Clean up results for output
+            results = []
+            for s in submitted:
+                entry = {
+                    "prompt": s["prompt"],
+                    "status": s["status"],
+                }
+                if s.get("task_id"):
+                    entry["task_id"] = s["task_id"]
+                if s.get("output"):
+                    entry["output"] = s["output"]
+                elif s.get("output_path"):
+                    entry["output"] = s["output_path"]
+                if s.get("error"):
+                    entry["error"] = s["error"]
+                if s.get("output_error"):
+                    entry["output_error"] = s["output_error"]
+                results.append(entry)
+
+            summary = {
+                "completed": completed,
+                "failed": failed,
+                "total": len(submitted),
+                "results": results,
+            }
+            output_result(summary, use_json)
+
+    except httpx.ConnectError:
+        output_error(
+            "Daemon not running. Start it with: gpu-broker daemon start",
+            code="daemon_not_running",
+        )
+        sys.exit(EXIT_DAEMON_NOT_RUNNING)
     except Exception as e:
         output_error(str(e))
         sys.exit(EXIT_ERROR)
